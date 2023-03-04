@@ -8,7 +8,7 @@ setwd(paste0(dirname(rstudioapi::getActiveDocumentContext()$path),"/.."))
 source("code/functions.R")
 
 # load cleaned data
-dat <- data.table::fread("data/01_clean.csv") 
+dat <- data.table::fread("data/processed/01_clean.csv") 
 
 #====================================================#
 # Part 1: test the function for latin_name
