@@ -40,6 +40,7 @@ orthReg <- function(data, x, y, plot = F){
   
   # filter data to focal taxa and and geometric mean for group
   all_focal_dat <- data %>%
+    dplyr::mutate(duration_d = ifelse(is.na(duration_d), "NA", duration_d)) %>% # THIS STEP HANDELS NAs in duration data
     dplyr::mutate(pair = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] ~ x[1],
                                           (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] ~ y[1],
                                           TRUE ~ NA_character_),
