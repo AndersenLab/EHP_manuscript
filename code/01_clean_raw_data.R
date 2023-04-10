@@ -44,7 +44,8 @@ proc_dat4 <- raw_dat4 %>%
 join_dat <- dplyr::bind_rows(proc_dat3, proc_dat4) %>%
   dplyr::mutate(id = paste0(cas, chem_name, group, latin_name, strain, test_type, test_statistic, duration_d, effect_value,
                             effect_unit, endpoint, source)) %>%
-  dplyr::distinct(id, .keep_all = T)
+  dplyr::distinct(id, .keep_all = T) %>%
+  dplyr::select(-id)
 
 # look for duplications since the row numbers above don't make sense. 262 rows duplicated in proc_dat3, some up to 4 times.
 # Let's just trust it for now.
