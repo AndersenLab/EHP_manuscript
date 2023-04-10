@@ -15,7 +15,7 @@ dat <- data.table::fread("data/processed/03_clean.csv")
 #====================================================#
 test1 <- orthReg(data = dat,
         x = c("Oncorhynchus mykiss", "LC50", "4"),
-        y = c("Daphnia magna", "EC50", "2"))
+        y = c("Daphnia magna", "EC50", "2"), plot = T)
 
 # # see the filtered focal data
 # a <- test1$all_focal_dat
@@ -37,7 +37,7 @@ cowplot::ggsave2(test1$plot, filename = "plots/rainbow_vs_daphnia.png", width = 
 #====================================================#
 test2 <- orthReg(data = dat,
                  x = c("FISH", "LC50", "4"),
-                 y = c("INVERT", "EC50", "2"))
+                 y = c("INVERT", "EC50", "2"), plot = T)
 
 # see the plot
 test2$plot
@@ -46,4 +46,5 @@ test2$plot
 cowplot::ggsave2(test2$plot, filename = "plots/FISH_vs_INVERT.png", width = 6, height = 5)
 
 #==================================================#
-# Test pulling the mse, rmese
+# Part 3: loop over pairs
+#==================================================#
