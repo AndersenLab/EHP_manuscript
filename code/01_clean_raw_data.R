@@ -15,3 +15,56 @@ proc_dat <- raw_dat %>%
 
 # save it
 readr::write_csv(proc_dat, file = "data/processed/01_clean.csv")
+
+#===================================================================#
+# Step 2: Read second data file and clean if needed
+#===================================================================#
+# read in raw data
+raw_dat2 <- readxl::read_excel("data/raw/02_clean_SG.xlsx", na = c("NA", ""))
+
+# the only issue is that Daphnia ambigua has a single duration as "instar"
+# save it
+readr::write_csv(raw_dat2, file = "data/processed/02_clean.csv")
+
+#===================================================================#
+# Step 3: Read 3/7 updated data files, clean, join, filter
+#===================================================================#
+# read in raw data from SG
+raw_dat3 <- readxl::read_excel("data/raw/Data_Andersen_All.xlsx", na = c("NA", ""))
+
+# clean it
+proc_dat3 <- raw_dat3 %>%
+  dplyr::mutate(filter = case_when(latin_name == "Daphnia ambigua" & is.na(duration_d) ~ "remove",
+                                   TRUE ~ "keep")) %>%
+  dplyr::filter(filter == "keep") %>%
+  dplyr::select(-filter)
+
+# get the cas numbers from the Andersen set - why are there only 18 cas numbers here? 
+cas_keep <- proc_dat3 %>%
+  dplyr::rename(chem_name2 = chem_name) %>%
+  dplyr::distinct(cas, chem_name2) 
+
+cas_keepv <- cas_keep %>%
+  dplyr::pull(cas)
+
+chem_keepv <- cas_keep %>%
+  dplyr::pull(chem_name2)
+
+# read in windy-boyd data set
+raw_dat4 <- readxl::read_excel("data/raw/Data_Boyd_EnviroTox.xlsx", na = c("NA", "")) 
+
+# filter the data to cas in andersen experiments
+proc_dat4 <- raw_dat4 %>%
+  dplyr::filter(cas %in% cas_keepv) %>%
+  dplyr::left_join(cas_keep) %>%
+  dplyr::mutate(chem_name = chem_name2) %>%
+  dplyr::select(-chem_name2)
+
+# join the processed 3 and 4 data
+join_dat <- dplyr::bind_rows(proc_dat3, proc_dat4)
+
+# save the joined data
+readr::write_csv(join_dat, file = "data/processed/03_clean.csv")
+
+
+  
