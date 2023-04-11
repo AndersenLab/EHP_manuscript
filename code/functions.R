@@ -47,8 +47,8 @@ orthReg <- function(data, x, y, plot = F){
                   pair_gen = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] ~ "x",
                                               (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] ~ "y",
                                               TRUE ~ NA_character_)) %>% # label pairs, should handle giving a group or a latin_name since they are unique
-    dplyr::filter(!is.na(pair)) %>% # filter to pairs with labels
-    dplyr::group_by(cas, pair) %>% 
+    dplyr::filter(!is.na(pair_gen)) %>% # filter to pairs with labels NEW pair_gen OLD pair
+    dplyr::group_by(cas, pair_gen) %>% # NEW pair_gen OLD pair
     dplyr::mutate(gm_mean = gm_mean(effect_value),
                   min = min(effect_value),
                   max = max(effect_value)) %>% # get geometric mean for chemical and pair
@@ -60,8 +60,7 @@ orthReg <- function(data, x, y, plot = F){
     tidyr::pivot_wider(names_from = pair_gen, values_from = c(gm_mean, min, max)) %>% # give us x and a y vars
     dplyr::filter(complete.cases(.)) # keep only complete cases
   
-  # get the orthogonal regression values with odregress function - use log transform of x and y
-  # coeff[1] = slope and coeff[2] = intercept
+  # ORIGINAL REGRESSION BASED ON gm_mean
   orthog_reg_model_log10 <- pracma::odregress(x = log10(plot_dat$gm_mean_x), y = log10(plot_dat$gm_mean_y))
   
   # run the extraction functions
@@ -83,8 +82,8 @@ orthReg <- function(data, x, y, plot = F){
     ggplot2::aes(x = gm_mean_x, y = gm_mean_y) +
     ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, size = 0.5) +
     ggplot2::geom_abline(slope = orthog_reg_model_log10$coeff[1], intercept = orthog_reg_model_log10$coeff[2], size = 0.5, color = "red") +
-    ggplot2::geom_errorbar(aes(ymin = min_y, ymax = max_y), size = 0.25, color = "grey70") +
-    ggplot2::geom_errorbarh(aes(xmin = min_x, xmax = max_x), size = 0.25, color = "grey70") +
+    ggplot2::geom_errorbar(aes(ymin = min_y, ymax = max_y), width = 0, size = 0.25, color = "grey70") +
+    ggplot2::geom_errorbarh(aes(xmin = min_x, xmax = max_x), height = 0, size = 0.25, color = "grey70") +
     ggplot2::geom_point(shape = 21, fill = "red", color = "black") +
     ggplot2::theme_bw() +
     ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(μg/L)"),
@@ -111,3 +110,66 @@ orthReg <- function(data, x, y, plot = F){
     return(orthreg_df)
   }
 } 
+
+#============================================================#
+# Pairwise orthogonal Regression function
+#============================================================#
+pwOrthReg <- function(data, group, message = F){
+  # lets get an id for the pair
+  dat.id <- data %>%
+    dplyr::rename_at(vars(matches(group)), ~ "group") %>%
+    dplyr::mutate(id = paste(group, test_statistic, duration_d, sep = ":"))
+  
+  # setup unique paris of group, test_stattistic, duration
+  unique.pairs <- dat.id %>%
+    dplyr::distinct(id)
+  
+  pairs.list <- combn(x = unique.pairs$id, m = 2, simplify = F)  
+  
+  # Create the progress bar
+  pb <- progress::progress_bar$new(total = length(pairs.list))
+  
+  # make a safe funciton for looping
+  orthReg.safe <- purrr::safely(orthReg)
+  
+  # setup a list to hold output
+  orthReg.list <- NULL
+  
+  # loop over pairs
+  for(i in 1:length(pairs.list)){
+    # get the pair data we care about
+    pair.dat <- dat.id %>%
+      dplyr::filter(id %in% pairs.list[[i]])
+    
+    # setup x and y, set NA's to 0 - NEED TO BE CERTAIN THIS IS KOSHER 
+    x <- stringr::str_split_fixed(pairs.list[[i]][1], n = 3, pattern = ":")
+    y <- stringr::str_split_fixed(pairs.list[[i]][2], n = 3, pattern = ":")
+    
+    # make a message for running
+    if(message == T){
+      message(glue::glue("running orthReg for {i} of {length(pairs.list)} pairs - {paste0(pairs.list[[i]], collapse =' ')}"))
+    }
+    if(message == F){
+      # Update the progress bar
+      pb$tick()
+    }
+    # perform orthogonal regression without plotting
+    orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = F)
+    
+    # handle orthReg.safe output with errors
+    if(is.null(orthReg.out$result)){
+      orthReg.out$result <- tibble::tibble(x = paste(x[1], x[2], x[3], sep = ":"),
+                                           y = paste(y[1], y[2], y[3], sep = ":"),
+                                           orth.reg.slope = NA_real_,
+                                           orth.reg.intercept = NA_real_,
+                                           orth.reg.ssq = NA_real_,
+                                           orth.reg.mse = NA_real_,
+                                           orth.reg.r.squared = NA_real_)
+    }
+    # add to the output list
+    orthReg.list[[i]] <- orthReg.out$result
+  }
+  
+  # return
+  return(orthReg.list)
+}
