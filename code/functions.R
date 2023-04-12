@@ -41,11 +41,12 @@ orthReg <- function(data, x, y, plot = F){
   # filter data to focal taxa and and geometric mean for group
   all_focal_dat <- data %>%
     dplyr::mutate(duration_d = ifelse(is.na(duration_d), "NA", duration_d)) %>% # THIS STEP HANDELS NAs in duration data
-    dplyr::mutate(pair = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] ~ x[1],
-                                          (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] ~ y[1],
+    dplyr::mutate(endpoint = ifelse(is.na(endpoint), "NA", endpoint)) %>% # THIS STEP HANDELS NAs in endpoint data???????
+    dplyr::mutate(pair = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] & endpoint == x[4] ~ x[1],
+                                          (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] & endpoint == y[4] ~ y[1],
                                           TRUE ~ NA_character_),
-                  pair_gen = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] ~ "x",
-                                              (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] ~ "y",
+                  pair_gen = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] & endpoint == x[4] ~ "x",
+                                              (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] & endpoint == y[4] ~ "y",
                                               TRUE ~ NA_character_)) %>% # label pairs, should handle giving a group or a latin_name since they are unique
     dplyr::filter(!is.na(pair_gen)) %>% # filter to pairs with labels NEW pair_gen OLD pair
     dplyr::group_by(cas, pair_gen) %>% # NEW pair_gen OLD pair
@@ -68,8 +69,9 @@ orthReg <- function(data, x, y, plot = F){
   orthog_reg_model_r_squared <- r_squared_odreg(orthog_reg_model_log10, log10(plot_dat$gm_mean_y))
   
   # build output
-  orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], sep = ":"),
-                                   y = paste(y[1], y[2], y[3], sep = ":"),
+  orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                   y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                   orth.reg.n.observations = nrow(plot_dat),
                                    orth.reg.slope = orthog_reg_model_log10$coeff[1],
                                    orth.reg.intercept = orthog_reg_model_log10$coeff[2],
                                    orth.reg.ssq = orthog_reg_model_log10$ssq[1],
@@ -87,7 +89,8 @@ orthReg <- function(data, x, y, plot = F){
     ggplot2::geom_point(shape = 21, fill = "red", color = "black") +
     ggplot2::theme_bw() +
     ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(μg/L)"),
-                  y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(μg/L)")) +
+                  y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(μg/L)"),
+                  subtitle = glue::glue("{x[1]}_{x[2]}_{x[3]}_{x[4]} : {y[1]}_{y[2]}_{y[3]}_{y[4]}")) +
     ggplot2::scale_x_log10(
       breaks = scales::trans_breaks("log10", function(x) 10^x),
       labels = scales::trans_format("log10", scales::math_format(10^.x))
@@ -118,9 +121,9 @@ pwOrthReg <- function(data, group, message = F){
   # lets get an id for the pair
   dat.id <- data %>%
     dplyr::rename_at(vars(matches(group)), ~ "group") %>%
-    dplyr::mutate(id = paste(group, test_statistic, duration_d, sep = ":"))
+    dplyr::mutate(id = paste(group, test_statistic, duration_d, endpoint, sep = ":"))
   
-  # setup unique paris of group, test_stattistic, duration
+  # setup unique paris of group, test_stattistic, duration, endpoint
   unique.pairs <- dat.id %>%
     dplyr::distinct(id)
   
@@ -142,8 +145,8 @@ pwOrthReg <- function(data, group, message = F){
       dplyr::filter(id %in% pairs.list[[i]])
     
     # setup x and y, set NA's to 0 - NEED TO BE CERTAIN THIS IS KOSHER 
-    x <- stringr::str_split_fixed(pairs.list[[i]][1], n = 3, pattern = ":")
-    y <- stringr::str_split_fixed(pairs.list[[i]][2], n = 3, pattern = ":")
+    x <- stringr::str_split_fixed(pairs.list[[i]][1], n = 4, pattern = ":")
+    y <- stringr::str_split_fixed(pairs.list[[i]][2], n = 4, pattern = ":")
     
     # make a message for running
     if(message == T){
@@ -158,8 +161,9 @@ pwOrthReg <- function(data, group, message = F){
     
     # handle orthReg.safe output with errors
     if(is.null(orthReg.out$result)){
-      orthReg.out$result <- tibble::tibble(x = paste(x[1], x[2], x[3], sep = ":"),
-                                           y = paste(y[1], y[2], y[3], sep = ":"),
+      orthReg.out$result <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                           y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                           orth.reg.n.observations = NA_real_,
                                            orth.reg.slope = NA_real_,
                                            orth.reg.intercept = NA_real_,
                                            orth.reg.ssq = NA_real_,
