@@ -47,7 +47,7 @@ join_dat <- dplyr::bind_rows(proc_dat3, proc_dat4) %>%
   dplyr::distinct(id, .keep_all = T) %>%
   dplyr::select(-id)
 
-# look for duplications since the row numbers above don't make sense. 262 rows duplicated in proc_dat3, some up to 4 times.
+# look for duplication since the row numbers above don't make sense. 262 rows duplicated in proc_dat3, some up to 4 times.
 # Let's just trust it for now.
 dup.test <- proc_dat3 %>%
   dplyr::mutate(id = paste0(cas, chem_name, group, latin_name, strain, test_type, test_statistic, duration_d, effect_value,
@@ -59,6 +59,21 @@ dup.test <- proc_dat3 %>%
 
 # save the joined data
 readr::write_csv(join_dat, file = "data/processed/03_clean.csv")
+
+#===================================================================#
+# Step 2: Read in data from ToxCast with tcpl package
+# https://cran.r-project.org/web/packages/tcpl/tcpl.pdf
+#===================================================================#
+## Store the current config settings, so they can be reloaded at the end
+## of the examples
+conf_store <- tcpl::tcplConfList()
+tcpl::tcplConfExample()
+
+## Load all of level 0 for multiple-concentration data, note 'mc' is the
+## default value for type
+test <- tcpl::tcplLoadData(lvl = 0)
+## Load all of level 1 for single-concentration
+tcplLoadData(lvl = 1, type = "sc")
 
 # # OLD DATA READ IN
 # #===================================================================#
