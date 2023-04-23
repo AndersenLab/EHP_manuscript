@@ -35,6 +35,7 @@ mse_odreg <- function(object){
 # function for data selection, shaping, orthogonal regression, plotting 
 #======================================================================#
 orthReg <- function(data, x, y, plot = F){
+
   # make a list to hold it all
   out <- NULL
   
@@ -118,6 +119,11 @@ orthReg <- function(data, x, y, plot = F){
 # Pairwise orthogonal Regression function
 #============================================================#
 pwOrthReg <- function(data, group, message = F){
+  # fix error if group is not "group"
+  if(group != "group"){
+    data = data %>%
+      dplyr::select(-group)
+  }
   # lets get an id for the pair
   dat.id <- data %>%
     dplyr::rename_at(vars(matches(group)), ~ "group") %>%
@@ -138,6 +144,16 @@ pwOrthReg <- function(data, group, message = F){
   # setup a list to hold output
   orthReg.list <- NULL
   
+  # fix error if group is not based on group - ugly fix
+  if(group != "group") {
+    # add fix column
+    dat.id <- dat.id %>%
+      dplyr::mutate(fix = NA_character_)
+    # rename it to group by position
+    rn.num <- ncol(dat.id)
+    names(dat.id)[13] <- group
+  }
+    
   # loop over pairs
   for(i in 1:length(pairs.list)){
     # get the pair data we care about

@@ -16,7 +16,18 @@ proc_dat3 <- raw_dat3 %>%
                                    TRUE ~ "keep")) %>%
   dplyr::filter(filter == "keep") %>%
   dplyr::select(-filter) %>%
-  dplyr::mutate(effect_unit = ifelse(effect_unit == "mg/l", "mg/L", effect_unit)) # fix mg/l
+  dplyr::mutate(effect_unit = ifelse(effect_unit == "mg/l", "mg/L", effect_unit)) %>% # fix mg/l
+  dplyr::mutate(duration_d = ifelse(source == "Widmayer 2022", 2, duration_d))
+
+# look for duplication since the row numbers above don't make sense. 262 rows duplicated in proc_dat3, some up to 4 times.
+# Let's just trust it for now.
+dup.test <- proc_dat3 %>%
+  dplyr::mutate(id = paste0(cas, chem_name, group, latin_name, strain, test_type, test_statistic, duration_d, effect_value,
+                            effect_unit, endpoint, source)) %>%
+  dplyr::group_by(id) %>%
+  dplyr::mutate(n = n()) %>%
+  dplyr::filter(n > 1) %>%
+  dplyr::distinct(id, .keep_all = T)
 
 # get the cas numbers from the Andersen set - why are there only 18 cas numbers here? 
 cas_keep <- proc_dat3 %>%
@@ -47,18 +58,23 @@ join_dat <- dplyr::bind_rows(proc_dat3, proc_dat4) %>%
   dplyr::distinct(id, .keep_all = T) %>%
   dplyr::select(-id)
 
-# look for duplication since the row numbers above don't make sense. 262 rows duplicated in proc_dat3, some up to 4 times.
-# Let's just trust it for now.
-dup.test <- proc_dat3 %>%
-  dplyr::mutate(id = paste0(cas, chem_name, group, latin_name, strain, test_type, test_statistic, duration_d, effect_value,
-                            effect_unit, endpoint, source)) %>%
-  dplyr::group_by(id) %>%
-  dplyr::mutate(n = n()) %>%
-  dplyr::filter(n > 1) %>%
-  dplyr::distinct(id, .keep_all = T)
+# clean up the endpoints - Let's add the changes here so we can export them cleanly for manuscript
+eps <- tibble::tibble(endpoint = unique(join_dat$endpoint), proc_ep = NA_character_) %>%
+  dplyr::mutate(proc_ep = dplyr::case_when(endpoint %in% c("Mortality/Growth",
+                                                         "Mortality, Mortality",
+                                                         "Mortality, Survival") ~ "Mortality",
+                                           endpoint == "Immobilization: Change in the failure to respond or lack of movement after mechanical stimulation." ~ "Immobility",
+                                           endpoint == "Intoxication, Immobile" ~ "Immobility",
+                                           TRUE ~ endpoint))
+
+# add the endpoint changes to joined data here
+join_dat_proc <- join_dat %>%
+  dplyr::left_join(eps) %>%
+  dplyr::select(-endpoint) %>%
+  dplyr::rename(endpoint = proc_ep)
 
 # save the joined data
-readr::write_csv(join_dat, file = "data/processed/03_clean.csv")
+readr::write_csv(join_dat_proc, file = "data/processed/03_clean.csv")
 
 #===================================================================#
 # Step 2: Read in data from ToxCast with tcpl package
