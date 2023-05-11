@@ -18,7 +18,69 @@ gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
   }
 }
 
+#==================================================#
+# 3D distance 
+#==================================================#
+# write a #D distance function
+dist.fun <- function(x1, y1, z1, x2, y2, z2) {
+  dist <- sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2) # slope, intercept, rsq
+  return(dist)
+}
+
+# Wrap the distance function in with data scaling and ploting
+distFromIdeal <- function(data, plot = T) {
+  # add in ideal data and scale all
+  dat <- data %>%
+    tibble::add_row(x = "ideal", y = "ideal", 
+                    orth.reg.n.observations = min(.$orth.reg.n.observations),
+                    orth.reg.slope = 1,
+                    orth.reg.intercept = 0,
+                    orth.reg.ssq = 0,
+                    orth.reg.mse = 0,
+                    orth.reg.r.squared = 1) %>%
+    dplyr::mutate(scaled.slope = as.double(scale(orth.reg.slope)),
+                  scaled.int = as.double(scale(orth.reg.intercept)),
+                  scaled.rsq = as.double(scale(orth.reg.r.squared)))
+  
+  # get the scaled ideal values
+  ideal <- dat %>%
+    filter(x == "ideal" & y == "ideal")
+  
+  # now calculate distance from scaled ideal values
+  dat.dist.from.ideal <- dat %>%
+    dplyr::mutate(type = ifelse((x == "ideal" & y == "ideal"), "ideal", "data")) %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(dist = dist.fun(x1 = scaled.slope,
+                                  y1 = scaled.int,
+                                  z1 = scaled.rsq,
+                                  x2 = ideal$scaled.slope,
+                                  y2 = ideal$scaled.int,
+                                  z2 = ideal$scaled.rsq)) %>%
+    dplyr::ungroup() %>%
+    dplyr::arrange(dist) %>%
+    dplyr::mutate(dist_rank = 1:n())
+  
+  if(plot == T){
+    
+    p <- plotly::plot_ly(data = dat.dist.from.ideal, x = ~scaled.slope, y = ~scaled.int, z = ~scaled.rsq,
+                            type = "scatter3d",
+                            mode = "markers",
+                            color = ~dist,
+                            colors = viridis::magma(5, alpha = 1, begin = 0, end = 1, direction = -1),
+                            text = ~glue::glue("dist={dist}\nn={orth.reg.n.observations}\n{x}\n{y}"),
+                            showlegend = F)
+    
+    # return
+    return(list(data = dat.dist.from.ideal, plot = p))
+  }
+  else {
+  #return
+  return(dat.dist.from.ideal)
+  }
+}
+
 #======================================================================#
+# CAUTION!!! NOT TESTED!!!
 # Pull out mean squared error and r-squared from orthReg model
 #======================================================================#
 # r squared - https://stackoverflow.com/questions/75067630/orthogonal-linear-regression-total-least-squares-fit-get-rmse-and-r-squared-i
@@ -34,7 +96,7 @@ mse_odreg <- function(object){
 #======================================================================#
 # function for data selection, shaping, orthogonal regression, plotting 
 #======================================================================#
-orthReg <- function(data, x, y, plot = F){
+orthReg <- function(data, x, y, min.cases = 3, plot = F){
 
   # make a list to hold it all
   out <- NULL
@@ -62,12 +124,72 @@ orthReg <- function(data, x, y, plot = F){
     tidyr::pivot_wider(names_from = pair_gen, values_from = c(gm_mean, min, max)) %>% # give us x and a y vars
     dplyr::filter(complete.cases(.)) # keep only complete cases
   
+  # handle case number filter
+  if((nrow(plot_dat) < min.cases)) {
+    # build output
+    orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                 y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                 orth.reg.n.observations = nrow(plot_dat),
+                                 orth.reg.slope = NA_real_,
+                                 orth.reg.intercept = NA_real_,
+                                 orth.reg.ssq = NA_real_,
+                                 orth.reg.mse = NA_real_,
+                                 orth.reg.r.squared = NA_real_)
+    if(plot == T){
+      # make dummy plot
+      plot <- ggplot2::ggplot(plot_dat) +
+        #ggplot2::aes(x = gm_mean_x, y = gm_mean_y) +
+        ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, size = 0.5) +
+        #ggplot2::geom_errorbar(aes(ymin = min_y, ymax = max_y), width = 0, size = 0.25, color = "grey70") +
+        #ggplot2::geom_errorbarh(aes(xmin = min_x, xmax = max_x), height = 0, size = 0.25, color = "grey70") +
+        #ggplot2::geom_point(shape = 21, fill = "red", color = "black") +
+        ggplot2::theme_bw() +
+        ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(μg/L)"),
+                      y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(μg/L)"),
+                      subtitle = glue::glue("LESS THAN {min.cases} CASES\nx={x[1]}_{x[2]}_{x[3]}d_{x[4]}\ny={y[1]}_{y[2]}_{y[3]}d_{y[4]}")) +
+        ggplot2::scale_x_log10(
+          breaks = scales::trans_breaks("log10", function(x) 10^x),
+          labels = scales::trans_format("log10", scales::math_format(10^.x))
+        ) +
+        ggplot2::scale_y_log10(
+          breaks = scales::trans_breaks("log10", function(x) 10^x),
+          labels = scales::trans_format("log10", scales::math_format(10^.x))
+        ) +
+        ggplot2::annotation_logticks()
+      
+      # setup output list
+      out$orthreg_df <- orthreg_df
+      out$plot <- plot
+      
+      # return list with data and plot
+      return(out)
+    }
+    else {
+      # return orthReg df
+      return(orthreg_df)
+    }
+  }
+  else {
   # ORIGINAL REGRESSION BASED ON gm_mean
   orthog_reg_model_log10 <- pracma::odregress(x = log10(plot_dat$gm_mean_x), y = log10(plot_dat$gm_mean_y))
   
+  # # old orthogonal regression
+  oldOR_df <- tibble::tibble(x = log10(plot_dat$gm_mean_x), y = log10(plot_dat$gm_mean_y))
+  pcObject <- princomp(oldOR_df)
+  myLoadings <- unclass(loadings(pcObject))[,1]
+  OR.slope <- myLoadings["y"]/myLoadings["x"]
+  OR.int <- mean(log10(plot_dat$gm_mean_y))-OR.slope*mean(log10(plot_dat$gm_mean_x))
+  ###Rsq is empirical in this setting.  The first principal component will always explain at least half
+  ###of the total variation, since the first two components will explain 100% of it in this simple setting,
+  ###and the first must explain at least as much as the second.
+  orthog_reg_model_r_squared <- as.double(((summary(pcObject)$sdev[1]^2)/sum(summary(pcObject)$sdev^2)-.5)/.5)
+  # corrCoef <- cor(log10(plot_dat$gm_mean_x),log10(plot_dat$gm_mean_y))
+  # corr.rsq <- corrCoef^2
+  
   # run the extraction functions
   orthog_reg_model_mse <- mse_odreg(orthog_reg_model_log10)
-  orthog_reg_model_r_squared <- r_squared_odreg(orthog_reg_model_log10, log10(plot_dat$gm_mean_y))
+  # NEW Rsq!!!!! DIFFERNET THAN OLD - using old for now
+  #orthog_reg_model_r_squared <- r_squared_odreg(orthog_reg_model_log10, log10(plot_dat$gm_mean_y))
   
   # build output
   orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
@@ -80,7 +202,7 @@ orthReg <- function(data, x, y, plot = F){
                                    orth.reg.r.squared = orthog_reg_model_r_squared)
   
   if(plot == T){
-  # plot it with log ticks
+  # plot it with log ticks 1group, 2test_stat, 3durationd, 4endpoint
   plot <- ggplot2::ggplot(plot_dat) +
     ggplot2::aes(x = gm_mean_x, y = gm_mean_y) +
     ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, size = 0.5) +
@@ -91,7 +213,7 @@ orthReg <- function(data, x, y, plot = F){
     ggplot2::theme_bw() +
     ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(μg/L)"),
                   y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(μg/L)"),
-                  subtitle = glue::glue("{x[1]}_{x[2]}_{x[3]}_{x[4]} : {y[1]}_{y[2]}_{y[3]}_{y[4]}")) +
+                  subtitle = glue::glue("x={x[1]}_{x[2]}_{x[3]}d_{x[4]}\ny={y[1]}_{y[2]}_{y[3]}d_{y[4]}")) +
     ggplot2::scale_x_log10(
       breaks = scales::trans_breaks("log10", function(x) 10^x),
       labels = scales::trans_format("log10", scales::math_format(10^.x))
@@ -113,27 +235,76 @@ orthReg <- function(data, x, y, plot = F){
     # return orthReg df
     return(orthreg_df)
   }
+  }
 } 
 
 #============================================================#
 # Pairwise orthogonal Regression function
 #============================================================#
-pwOrthReg <- function(data, group, message = F){
+pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, plot = F){
   # fix error if group is not "group"
   if(group != "group"){
     data = data %>%
       dplyr::select(-group)
   }
-  # lets get an id for the pair
+  # lets get an id for the pairs and filter if observations are less than min.n
   dat.id <- data %>%
     dplyr::rename_at(vars(matches(group)), ~ "group") %>%
-    dplyr::mutate(id = paste(group, test_statistic, duration_d, endpoint, sep = ":"))
+    dplyr::mutate(id = paste(group, test_statistic, duration_d, endpoint, sep = ":")) %>%
+    dplyr::group_by(id) %>%
+    dplyr::mutate(n.test = length(unique(cas))) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(n.test >= min.n) %>%
+    dplyr::select(-n.test)
   
-  # setup unique paris of group, test_stattistic, duration, endpoint
+  # setup unique pairs of group, test_statistic, duration, endpoint
   unique.pairs <- dat.id %>%
     dplyr::distinct(id)
   
-  pairs.list <- combn(x = unique.pairs$id, m = 2, simplify = F)  
+  pairs.list <- combn(x = unique.pairs$id, m = 2, simplify = F)
+  
+  if(!is.null(limit.comp)){
+    limits <- NULL
+    # find unwanted comps
+    for(j in 1:length(pairs.list)){
+      if((grepl(pairs.list[[j]][1], pattern = limit.comp) == T & grepl(pairs.list[[j]][2], pattern = limit.comp) == T) |
+         (grepl(pairs.list[[j]][1], pattern = limit.comp) == F & grepl(pairs.list[[j]][2], pattern = limit.comp) == F) == T){
+        limits <- rlist::list.append(limits, j)
+      }
+      if((grepl(pairs.list[[j]][1], pattern = limit.comp) == F & grepl(pairs.list[[j]][2], pattern = limit.comp) == T)){
+        pairs.list[[j]] <- rev(pairs.list[[j]])
+      }
+    }
+    # dump unwanted comps
+    if(!is.null(limits)) {
+      pairs.list <- pairs.list[-limits]
+    }
+  }
+  
+  # STOP function if filtered pair list is length 0
+  if(length(pairs.list) == 0){
+    stop("all pairs filtered, check input data")
+  }
+  
+  # further prune the pair list to make sure similar drugs tested in both groups
+  limits2 <- NULL
+  for(j in 1:length(pairs.list)){
+    dx <- dat.id %>%
+      dplyr::filter(id %in% pairs.list[[j]][1]) %>%
+      dplyr::distinct(cas)
+    dy <- dat.id %>%
+      dplyr::filter(id %in% pairs.list[[j]][2]) %>%
+      dplyr::distinct(cas)
+    d.shared <- sum(dx$cas %in% dy$cas)
+    # collect unwanted comps
+    if(d.shared < min.n) {
+      limits2 <- rlist::list.append(limits2, j)
+    }
+  }
+  # dump unwanted comps b/c of too few common drugs
+  if(!is.null(limits2)) {
+    pairs.list <- pairs.list[-limits2]
+  }
   
   # Create the progress bar
   pb <- progress::progress_bar$new(total = length(pairs.list))
@@ -143,6 +314,11 @@ pwOrthReg <- function(data, group, message = F){
   
   # setup a list to hold output
   orthReg.list <- NULL
+  
+  # add plot list if needed
+  if(plot == TRUE) {
+  plot.list <- NULL
+  }
   
   # fix error if group is not based on group - ugly fix
   if(group != "group") {
@@ -172,6 +348,8 @@ pwOrthReg <- function(data, group, message = F){
       # Update the progress bar
       pb$tick()
     }
+    
+    if(plot == F) {
     # perform orthogonal regression without plotting
     orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = F)
     
@@ -188,8 +366,36 @@ pwOrthReg <- function(data, group, message = F){
     }
     # add to the output list
     orthReg.list[[i]] <- orthReg.out$result
+    }
+    if(plot == T) {
+      # perform orthogonal regression without plotting
+      orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = T)
+      
+      # handle orthReg.safe output with errors
+      if(is.null(orthReg.out$result)){
+        orthReg.out$result$orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                             y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                             orth.reg.n.observations = NA_real_,
+                                             orth.reg.slope = NA_real_,
+                                             orth.reg.intercept = NA_real_,
+                                             orth.reg.ssq = NA_real_,
+                                             orth.reg.mse = NA_real_,
+                                             orth.reg.r.squared = NA_real_)
+        orthReg.out$result$plot <- ggplot2::ggplot()
+      }
+      
+      # add to the output list
+      orthReg.list[[i]] <- orthReg.out$result$orthreg_df
+      plot.list[[i]] <- orthReg.out$result$plot
+    }
   }
-  
+  if(plot == FALSE){
   # return
   return(orthReg.list)
+  }
+  if(plot == TRUE){
+    # return
+    orthReg.plot.list <- list(orthregs = orthReg.list, plots = plot.list)
+    return(orthReg.plot.list)
+  }
 }

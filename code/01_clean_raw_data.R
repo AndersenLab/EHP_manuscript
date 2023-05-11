@@ -67,15 +67,42 @@ eps <- tibble::tibble(endpoint = unique(join_dat$endpoint), proc_ep = NA_charact
                                            endpoint == "Intoxication, Immobile" ~ "Immobility",
                                            TRUE ~ endpoint))
 
+
 # add the endpoint changes to joined data here
 join_dat_proc <- join_dat %>%
   dplyr::left_join(eps) %>%
   dplyr::select(-endpoint) %>%
   dplyr::rename(endpoint = proc_ep)
 
+# # SG asked about mortality and intoxication for inverts - can we merge 2day mortality and 2day intoxication?
+# merge1 <- join_dat_proc %>%
+#   dplyr::filter(group == "INVERT") %>%
+#   dplyr::group_by(endpoint, duration_d) %>%
+#   dplyr::mutate(n.in.group = n()) %>%
+#   dplyr::distinct(latin_name, endpoint, duration_d, n.in.group) %>%
+#   dplyr::filter(endpoint == "Intoxication")
+  
 # save the joined data
 readr::write_csv(join_dat_proc, file = "data/processed/03_clean.csv")
 
+# summarize the data
+n.sp <- length(unique(join_dat_proc$latin_name))
+n.drugs <- length(unique(join_dat_proc$cas))
+n.drugs.per.sp <- join_dat_proc %>%
+  dplyr::group_by(latin_name) %>%
+  dplyr::mutate(n.drugs.in.sp = length(unique(cas))) %>%
+  dplyr::ungroup() %>%
+  dplyr::distinct(latin_name, .keep_all = T) %>%
+  dplyr::mutate(avg.n.drugs.sp = mean(n.drugs.in.sp),
+                sd.n.drugs.sp = sd(n.drugs.in.sp)) #%>%
+p <- ggplot(n.drugs.per.sp) +
+  aes(x = n.drugs.in.sp) +
+  geom_histogram() +
+  theme_bw()
+p
+n.groups <- length(unique(join_dat_proc$group))
+n.endpoints <- length(unique(join_dat_proc$endpoint))
+n.test_statistics <- length(unique(join_dat_proc$test_statistic))
 #===================================================================#
 # Step 2: Read in data from ToxCast with tcpl package
 # https://cran.r-project.org/web/packages/tcpl/tcpl.pdf
