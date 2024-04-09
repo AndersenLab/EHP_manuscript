@@ -87,7 +87,7 @@ abs.plot <- rel %>%
   theme_bw(base_size = 11) +
   #geom_vline(xintercept = 0, linetype = 3, colour = "orange") + 
   geom_pointrange(position = position_dodge(width = 0.2),
-                  size = 0.5) + 
+                  size = 0.25) + 
   scale_color_manual(values = strain_colors, name = "Strain") +
   #scale_alpha_manual(values = c(0.15,1), guide = "none") +
   facet_grid(class~., scales = "free", space = "free") + 
