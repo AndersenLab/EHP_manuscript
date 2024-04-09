@@ -2,6 +2,18 @@
 library(tidyverse)
 
 #==================================================#
+# Prompt Toxcast configuration
+#==================================================#
+tcplConfPrompt <- function(db   = "invitrodb_v2", user = "root", host = "localhost", drvr = "MySQL"){
+  # prompt for password
+  pw <- readline(prompt="what's the magic word?: ")
+  # message
+  message(glue::glue("great, configuring tcpl:\ntcpl::tcplConf(db = {db},\nuser = {user},\nhost = {host},\ndrvr = {drvr},\npass = {pw})"))
+  # pass to config function
+  tcpl::tcplConf(db = db, user = user, host = host, drvr = drvr, pass = pw)
+}
+
+#==================================================#
 # Geometric mean function from P. McMurdie 
 #==================================================#
 gm_mean = function(x, na.rm=TRUE, zero.propagate = FALSE){
@@ -96,6 +108,10 @@ mse_odreg <- function(object){
 #======================================================================#
 # function for data selection, shaping, orthogonal regression, plotting 
 #======================================================================#
+# x is a vector of specific latin_name/group, test_statistic, duration_d, endpoint
+# y is as x, code NAs as "NA"
+# min.cases is the minimum number of observations required to perform the regression?
+# plot is true to output a plot. If false, the default, no plot is made.
 orthReg <- function(data, x, y, min.cases = 3, plot = F){
 
   # make a list to hold it all

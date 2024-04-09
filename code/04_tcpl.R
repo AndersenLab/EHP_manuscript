@@ -9,9 +9,14 @@ library(tcpl)
 # set working dir to base directory of repository
 setwd(paste0(dirname(rstudioapi::getActiveDocumentContext()$path),"/.."))
 
-# Testing tcpl
-tcplConfList()
-?tcplConf()
+# load functions
+source("code/functions.R")
+
+# configure tcpl
+tcplConfPrompt(db   = "invitrodb_v2",
+               user = "root",
+               host = "localhost",
+               drvr = "MySQL")
 
 # load cleaned data and drop group for now - causes eror with pwOrthReg function when assigning latin_name to group
 dat <- data.table::fread("data/processed/03_clean.csv") %>%
@@ -37,9 +42,9 @@ acids <- tcplLoadAcid()
 aeids <- tcplLoadAeid()
 
 #===========================================================================####
-# Part 2: Pull all mc5 data for our toxins
+# Part 2: Pull all multi concentration level 5 data for our toxicants
 #===========================================================================####
-# pull all mc5 data?
+# pull all mc5 data
 mc5 <- tcplPrepOtpt(
   tcplLoadData(lvl=5, # data level
                fld="aeid", # fields to query on
@@ -48,7 +53,7 @@ mc5 <- tcplPrepOtpt(
                type = "mc") # return additional parameters from mc5_param 
 )
 
-# filter to our 22 chemicals
+# filter to our 22 chemicals - no silver nitrate
 mc5.chem <- mc5 %>%
   dplyr::filter(casn %in% dat$cas2)
 
@@ -56,14 +61,6 @@ mc5.chem <- mc5 %>%
 missing <- tibble::tibble(missing = (unique(dat$cas2) %in% unique(mc5.chem$casn)),
                           cas2 = unique(dat$cas2),
                           chem_name = unique(dat$chem_name))
-
-
-# look for other silvers?
-mc5.silver <- mc5 %>%
-  dplyr::filter(grepl(chnm, pattern = "ilver"))
-
-# ok, some but not silver nitrate
-silvers <- unique(mc5.silver$chnm)
 
 # export the rda file
 #save(mc5.chem, file = "data/processed/mc5.chem.issue.rda")
@@ -78,7 +75,9 @@ mc5.chem.fit <- mc5.chem %>%
 
 # with vialbility, cytotoxicity, mortality
 mc5.chem.fit.end <- mc5.chem.fit %>%
-  dplyr::filter(grepl(aenm, pattern = "viability|cytotoxicity|mortality"))
+  dplyr::filter(grepl(aenm, pattern = "viability|cytotoxicity|MORT"))
+
+
 
 # export these
 save(mc5.chem.fit.end, file = "data/processed/mc5.chem.fit.end.rda")

@@ -211,7 +211,7 @@ x1 <- dat %>%
 # run the orth regressions across all pairs
 x1l <- pwOrthReg(data = x1, group = "group", min.n = 5, limit.comp = "NEMATODE_COPAS1", message = T, plot = T)
 x1df <- data.table::rbindlist(x1l$orthregs)
-x1plots <- cowplot::plot_grid(plotlist = x1l$plots)
+x1plots <- cowplot::plot_grid(plotlist = x1l$plots[[3]])
 cowplot::ggsave2(x1plots, filename = "plots/Widmayer-Boyd-Oncorhynchus_mykiss_96_hr_LC50_2.png", width = 12, height = 12)
 
 # Test the orthReg function again with single comp
