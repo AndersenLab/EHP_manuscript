@@ -64,8 +64,8 @@ plot_dat <- or2_proc %>%
 df2_noCarb <- dat %>%
   dplyr::filter(latin_name == "Caenorhabditis elegans" &
                   test_statistic %in% c("EC10", "AC50") &
-                  chem_name != "Carbaryl") %>%
-  dplyr::mutate(duration_d = ifelse(is.na(test_statistic), ""))
+                  chem_name != "Carbaryl") #%>%
+  dplyr::mutate(duration_d = ifelse(is.na(test_statistic), "", test_statistic))
 
 # shape data and calc geometric mean
 or2_noCarb_proc <- df2_noCarb %>%
@@ -111,6 +111,10 @@ orthog_reg_model_mse <- mse_odreg(orthog_reg_model_log10)
 # NEW Rsq!!!!! DIFFERNET THAN OLD - using old for now
 #orthog_reg_model_r_squared <- r_squared_odreg(orthog_reg_model_log10, log10(plot_dat$gm_mean_y))
 
+# just make a lm to test
+lmfig2 <- lm(data = noCarb_plot_dat, gm_mean_y ~ gm_mean_x)
+summary(lmfig2)
+
 # build output for orthogonal regression
 noCarb_orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
                              y = paste(y[1], y[2], y[3], y[4], sep = ":"),
@@ -137,18 +141,20 @@ fig2 <- ggplot2::ggplot(plot_dat) +
   ggplot2::scale_x_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),
     labels = scales::trans_format("log10", scales::math_format(10^.x)),
-    limits = c(0.01, 300)
+    limits = c(0.1, 300)
   ) +
   ggplot2::scale_y_log10(
     breaks = scales::trans_breaks("log10", function(x) 10^x),
     labels = scales::trans_format("log10", scales::math_format(10^.x)),
     limits = c(0.01, 300)
   ) +
+  annotate(geom = "text", x = 30, y = 0.02, label = glue::glue("carbaryl"), size = 4) +
+  #annotate(geom = "text", x = 3, y = 0.02, label = glue::glue("r = {corr.all}"), size = 3) +
   ggplot2::annotation_logticks() 
 fig2
 
 # save the figure
-cowplot::ggsave2(fig2, filename = "figures/figure2.png", width = 6, height = 6)
+cowplot::ggsave2(fig2, filename = "figures/figure2.png", width = 4.5, height = 4.5)
 
 # save the data for ploting and the regression coefficients
 rio::export(plot_dat, file = "data/processed/fig2.plot.data.csv")
@@ -203,7 +209,7 @@ df3d <- dat %>%
   dplyr::filter(group == "NEMATODE" | group == "ALGAE")
 
 # run the orth regressions across all pairs
-or3d <- pwOrthReg(data = df3d, group = "group", limit.comp = "NEMATODE", min.cases = 3, message = F, plot = T)
+or3d <- pwOrthReg(data = df3d, group = "group", limit.comp = "NEMATODE", min.n = 3, message = F, plot = T)
 or3ddf <- data.table::rbindlist(or3d$orthregs)
 or3dp <- or3d$plots[[3]]
 print(glue::glue("slope = {round(or3ddf[3]$orth.reg.slope, digits = 2)}, y-intercept = {round(or3ddf[3]$orth.reg.intercept, digits = 2)}, r^2 = {round(or3ddf[3]$orth.reg.r.squared, digits = 2)}"))
@@ -247,37 +253,37 @@ df4f <- dat %>%
 
 #===========================================================#
 # run the orth regressions across all pairs
-or4a <- pwOrthReg(data = df4a, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4a <- pwOrthReg(data = df4a, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4adf <- data.table::rbindlist(or4a$orthregs)
 or4ap <- or4a$plots[[1]] # this is std.
 print(glue::glue("slope = {round(or4adf[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf[1]$orth.reg.r.squared, digits = 2)}"))
 
 # run the orth regressions across all pairs
-or4b <- pwOrthReg(data = df4b, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4b <- pwOrthReg(data = df4b, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4bdf <- data.table::rbindlist(or4b$orthregs)
 or4bp <- or4b$plots[[2]] # std.
 print(glue::glue("slope = {round(or4bdf[2]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4bdf[2]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4bdf[2]$orth.reg.r.squared, digits = 2)}"))
 
 # run the orth regressions across all pairs
-or4c <- pwOrthReg(data = df4c, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4c <- pwOrthReg(data = df4c, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4cdf <- data.table::rbindlist(or4c$orthregs)
 or4cp <- or4c$plots[[1]]
 print(glue::glue("slope = {round(or4cdf[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4cdf[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4cdf[1]$orth.reg.r.squared, digits = 2)}"))
 
 # run the orth regressions across all pairs
-or4d <- pwOrthReg(data = df4d, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4d <- pwOrthReg(data = df4d, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4ddf <- data.table::rbindlist(or4d$orthregs)
 or4dp <- or4d$plots[[3]] # std
 print(glue::glue("slope = {round(or4ddf[3]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4ddf[3]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4ddf[3]$orth.reg.r.squared, digits = 2)}"))
 
 # run the orth regressions across all pairs
-or4e <- pwOrthReg(data = df4e, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4e <- pwOrthReg(data = df4e, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4edf <- data.table::rbindlist(or4e$orthregs)
 or4ep <- or4e$plots[[1]]
 print(glue::glue("slope = {round(or4edf[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4edf[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4edf[1]$orth.reg.r.squared, digits = 2)}"))
 
 # run the orth regressions across all pairs
-or4f <- pwOrthReg(data = df4f, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.cases = 3, message = F, plot = T)
+or4f <- pwOrthReg(data = df4f, group = "latin_name", limit.comp = "Caenorhabditis elegans", min.n = 3, message = F, plot = T)
 or4fdf <- data.table::rbindlist(or4f$orthregs)
 or4fp <- or4f$plots[[1]]
 print(glue::glue("slope = {round(or4fdf[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4fdf[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4fdf[1]$orth.reg.r.squared, digits = 2)}"))

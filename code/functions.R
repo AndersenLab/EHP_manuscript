@@ -207,6 +207,16 @@ orthReg <- function(data, x, y, min.cases = 3, plot = F){
   # NEW Rsq!!!!! DIFFERNET THAN OLD - using old for now
   #orthog_reg_model_r_squared <- r_squared_odreg(orthog_reg_model_log10, log10(plot_dat$gm_mean_y))
   
+  #----------------------------------------------------------------------------#
+  # Add deming function
+  #----------------------------------------------------------------------------#
+  library(deming)
+  deming_model_log10 <- deming::deming(log10(plot_dat$gm_mean_y) ~ log10(plot_dat$gm_mean_x))
+  
+  #----------------------------------------------------------------------------#
+  # End deming function test
+  #----------------------------------------------------------------------------#
+  
   # build output
   orthreg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
                                    y = paste(y[1], y[2], y[3], y[4], sep = ":"),
@@ -215,7 +225,13 @@ orthReg <- function(data, x, y, min.cases = 3, plot = F){
                                    orth.reg.intercept = orthog_reg_model_log10$coeff[2],
                                    orth.reg.ssq = orthog_reg_model_log10$ssq[1],
                                    orth.reg.mse = orthog_reg_model_mse,
-                                   orth.reg.r.squared = orthog_reg_model_r_squared)
+                                   orth.reg.r.squared = orthog_reg_model_r_squared,
+                               deming.reg.slope = deming_model_log10$coefficients[[2]],
+                               deming.reg.slope.lower.ci = deming_model_log10$ci[[2]],
+                               deming.reg.slope.upper.ci = deming_model_log10$ci[[2,2]],
+                               deming.reg.intercept = deming_model_log10$coefficients[[1]],
+                               deming.reg.intercept.lower.ci = deming_model_log10$ci[[1]],
+                               deming.reg.intercept.upper.ci = deming_model_log10$ci[[1,2]],)
   
   if(plot == T){
   # plot it with log ticks 1group, 2test_stat, 3durationd, 4endpoint
@@ -265,7 +281,8 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, pl
   }
   # lets get an id for the pairs and filter if observations are less than min.n
   dat.id <- data %>%
-    dplyr::rename_at(vars(matches(group)), ~ "group") %>%
+    dplyr::rename_with(., ~ str_replace(.x, pattern = group, replacement = "group"), matches(group)) %>%
+    #dplyr::rename_at(vars(matches(group)), ~ "group") %>%
     dplyr::mutate(id = paste(group, test_statistic, duration_d, endpoint, sep = ":")) %>%
     dplyr::group_by(id) %>%
     dplyr::mutate(n.test = length(unique(cas))) %>%
