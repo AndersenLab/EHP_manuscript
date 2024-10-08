@@ -29,7 +29,7 @@ cas_numbers <- c("10108-64-2", "114-26-1", "115-09-3", "115-86-6", "116-06-3",
 mw_data <- read_excel("data/processed/toxcast_mw.xlsx") %>%
   dplyr::mutate(INPUT = as.character(INPUT)) %>%
   dplyr::distinct(.keep_all = T) %>%
-  dplyr::mutate(AVERAGE_MASS = ifelse(CASRN == "8018-01-7", 541.08, AVERAGE_MASS)) %>% # fix Manxozeb
+  dplyr::mutate(AVERAGE_MASS = ifelse(CASRN == "8018-01-7", 541.08, AVERAGE_MASS)) %>% # fix Mancozeb
   dplyr::select(CASRN, AVERAGE_MASS)
 
 # Get assay description data so we can use biological_process_target (BPT) to filter to relevant assays
@@ -269,6 +269,9 @@ zf.padilla.df2 <- zf.bind.qc %>%
 zf.padilla.df3 <- zf.bind.qc %>%
   dplyr::filter(group == "ZF_EMBRYO1" | group == "TOXCAST_zebrafish_Padilla")
 
+# temp save for SG review
+rio::export(zf.padilla.df3, file = "data/raw/20240718_raw_Padilla.csv")
+
 or.zf.padilla2 <- pwOrthReg(data = zf.padilla.df2, group = "group", limit.comp = "ZF_EMBRYO2", min.n = 5, message = T, plot = T)
 or.zf.padilla.df2 <- data.table::rbindlist(or.zf.padilla2$orthregs)
 or.zf.padilla2$plots
@@ -290,6 +293,41 @@ cowplot::ggsave2(zf_comps, filename = "plots/toxcast_zebrafish_source_comps.png"
 undebug(orthReg)
 or.zf.padilla3 <- pwOrthReg(data = zf.padilla.df3, group = "group", limit.comp = "ZF_EMBRYO1", min.n = 5, message = T, plot = T)
 or.zf.padilla.df3 <- data.table::rbindlist(or.zf.padilla3$orthregs)
+
+#------------------------------------------------------------------------------#
+# TEMP
+#------------------------------------------------------------------------------#
+length(unique(dat$cas))
+length(unique(dat$chem_name))
+
+set <- dat %>%
+  dplyr::filter(group == "NEMATODE" | group == "ZF_EMBRYO2") %>%
+  dplyr::group_by(group) %>%
+  dplyr::mutate(n.comp = length(unique(cas)))
+set$n.comp
+
+set.zf <- set %>%
+  dplyr::filter(group == "ZF_EMBRYO2") %>%
+  dplyr::distinct(chem_name) %>%
+  dplyr::pull(chem_name)
+set.worm <- set %>%
+  dplyr::filter(group == "NEMATODE") %>%
+  dplyr::distinct(chem_name) %>%
+  dplyr::pull(chem_name)
+set.missing <- set.worm %in% set.zf
+
+set.zf2 <- set %>%
+  dplyr::filter(group == "ZF_EMBRYO2") %>%
+  dplyr::distinct(cas) %>%
+  dplyr::pull(cas)
+set.worm2 <- set %>%
+  dplyr::filter(group == "NEMATODE") %>%
+  dplyr::distinct(cas) %>%
+  dplyr::pull(cas)
+set.missing2 <- set.worm2 %in% set.zf2
+test <- tibble::tibble(mis = set.missing2, set.worm2, set.worm)
+temp <- pwOrthReg(data = , group = "group", limit.comp = "NEMATODE", min.n = 5, message = T, plot = T)
+
 #------------------------------------------------------------------------------#
 # Part 6: Testing deming regression with CIs
 #------------------------------------------------------------------------------#

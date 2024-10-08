@@ -1,0 +1,21 @@
+cas,chem_name,group,latin_name,strain,test_type,test_statistic,duration_d,effect_value,effect_unit,endpoint,source
+94757,"2,4-D",RAT_TEST,Rat,NA,NA,LD50,NA,375,mg/kg,Mortality,EPA CompTox
+116063,Aldicarb,RAT_TEST,Rat,NA,NA,LD50,NA,0.5,mg/kg,Mortality,EPA CompTox
+1327533,Arsenic trioxide,RAT_TEST,Rat,NA,NA,LD50,NA,14.6,mg/kg,Mortality,EPA CompTox
+1912249,Atrazine,RAT_TEST,Rat,NA,NA,LD50,NA,672,mg/kg,Mortality,EPA CompTox
+10108642,Cadmium chloride,RAT_TEST,Rat,NA,NA,LD50,NA,88,mg/kg,Mortality,EPA CompTox
+63252,Carbaryl,RAT_TEST,Rat,NA,NA,LD50,NA,230,mg/kg,Mortality,EPA CompTox
+5234684,Carboxin,RAT_TEST,Rat,NA,NA,LD50,NA,430,mg/kg,Mortality,EPA CompTox
+1897456,Chlorothalonil,RAT_TEST,Rat,NA,NA,LD50,NA,10000,mg/kg,Mortality,EPA CompTox
+2921882,Chlorpyrifos,RAT_TEST,Rat,NA,NA,LD50,NA,82,mg/kg,Mortality,EPA CompTox
+7447394,Copper(II) chloride,RAT_TEST,Rat,NA,NA,LD50,NA,584,mg/kg,Mortality,EPA CompTox
+121755,Malathion,RAT_TEST,Rat,NA,NA,LD50,NA,290,mg/kg,Mortality,EPA CompTox
+8018017,Mancozeb,RAT_TEST,Rat,NA,NA,LD50,NA,5000,mg/kg,Mortality,EPA CompTox
+16752775,Methomyl,RAT_TEST,Rat,NA,NA,LD50,NA,14.7,mg/kg,Mortality,EPA CompTox
+115093,Methylmercury chloride,RAT_TEST,Rat,NA,NA,LD50,NA,29.915,mg/kg,Mortality,EPA CompTox
+7718549,Nickel chloride,RAT_TEST,Rat,NA,NA,LD50,NA,681,mg/kg,Mortality,EPA CompTox
+1910425,Paraquat,RAT_TEST,Rat,NA,NA,LD50,NA,57,mg/kg,Mortality,EPA CompTox
+114261,Propoxur,RAT_TEST,Rat,NA,NA,LD50,NA,41,mg/kg,Mortality,EPA CompTox
+7761888,Silver nitrate,RAT_TEST,Rat,NA,NA,LD50,NA,1173,mg/kg,Mortality,EPA CompTox
+115866,Triphenyl phosphate,RAT_TEST,Rat,NA,NA,LD50,NA,3500,mg/kg,Mortality,EPA CompTox
+7646857,Zinc chloride,RAT_TEST,Rat,NA,NA,LD50,NA,350,mg/kg,Mortality,EPA CompTox
