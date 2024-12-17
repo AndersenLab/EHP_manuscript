@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 library(tidyverse)
 
+today <- format(Sys.Date(), "%Y%m%d")
 #==================================================#
 # Prompt Toxcast configuration
 #==================================================#
@@ -402,7 +403,9 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, pl
     }
     if(plot == T) {
       # perform orthogonal regression without plotting
+      #debug(orthReg.safe)
       orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = T)
+      #orthReg.out <- orthReg(data = pair.dat, x = x, y = y, plot = T)
       
       # handle orthReg.safe output with errors
       if(is.null(orthReg.out$result)){

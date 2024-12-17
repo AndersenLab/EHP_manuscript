@@ -8,14 +8,12 @@ setwd(paste0(dirname(rstudioapi::getActiveDocumentContext()$path),"/.."))
 source("code/functions.R")
 
 # load cleaned data and drop group for now - causes eror with pwOrthReg function when assigning latin_name to group
-dat <- data.table::fread("data/processed/03_clean.csv")
+#dat <- data.table::fread("data/processed/03_clean.csv")
+dat <- data.table::fread("data/processed/00_data.csv")
 
 #==================================================#
 # Part 1: Setup the priority Orth Regs
 #==================================================#
-# to debug
-#debug(pwOrthReg)
-
 # Widmayer vs Oncorhynchus mykiss 96 hr LC50
 d1 <- dat %>%
   dplyr::filter((latin_name == "Oncorhynchus mykiss" &
@@ -24,11 +22,12 @@ d1 <- dat %>%
                   (latin_name == "Caenorhabditis elegans" &
                      duration_d == 2))
 
-# run the orth regressions across all pairs
-d1l <- pwOrthReg(data = d1, group = "latin_name", min.n = 5, limit.comp = "Caenorhabditis", message = T, plot = T)
+# run the orth regressions across all pairs - NEED TO DEBUG
+# to debug - debug(pwOrthReg) debug(orthReg)
+d1l <- pwOrthReg(data = d1, group = "latin_name", min.n = 5, limit.comp = "Caenorhabditis elegans", message = T, plot = T)
 d1df <- data.table::rbindlist(d1l$orthregs)
 d1plots <- cowplot::plot_grid(plotlist = d1l$plots)
-cowplot::ggsave2(d1plots, filename = "plots/Widmayer-Oncorhynchus_mykiss_96_hr_LC50.png", width = 12, height = 6)
+cowplot::ggsave2(d1plots, filename = "plots/test.png", width = 12, height = 6)
 
 # Widmayer vs Pimephales promelas 96 hr LC50
 d2 <- dat %>%
@@ -184,7 +183,7 @@ cowplot::ggsave2(d11plots, filename = "plots/Widmayer-RAT.png", width = 12, heig
 # Part 2: Consolidate priority orth_regs and sort
 #==================================================#
 # combine the data sets
-proc_orthregs <- dplyr::bind_rows(d1df, d2df, d3df, d4df, d5df, d7df, d9df, d10df, d11df) %>% #d8df, #d6df,
+proc_orthregs <- dplyr::bind_rows(d1df, d2df, d3df, d4df, d5df, d7df, d9df, d11df) %>% #d8df, #d6df,#d10df
   dplyr::filter(!is.na(orth.reg.slope)) 
 
 # run the distance function - probably not the best function to find good comparisons, but cool attempt
@@ -211,8 +210,8 @@ x1 <- dat %>%
 # run the orth regressions across all pairs
 x1l <- pwOrthReg(data = x1, group = "group", min.n = 5, limit.comp = "NEMATODE_COPAS1", message = T, plot = T)
 x1df <- data.table::rbindlist(x1l$orthregs)
-x1plots <- cowplot::plot_grid(plotlist = x1l$plots[[3]])
-cowplot::ggsave2(x1plots, filename = "plots/Widmayer-Boyd-Oncorhynchus_mykiss_96_hr_LC50_2.png", width = 12, height = 12)
+x1plots <- cowplot::plot_grid(plotlist = x1l$plots)
+cowplot::ggsave2(x1plots, filename = glue::glue("plots/{today}_Widmayer-Boyd-Oncorhynchus_mykiss_96_hr_LC50_2.png"), width = 12, height = 12)
 
 # Test the orthReg function again with single comp
 x2 <- d1 %>%

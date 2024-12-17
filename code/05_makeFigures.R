@@ -8,8 +8,8 @@ setwd(paste0(dirname(rstudioapi::getActiveDocumentContext()$path),"/.."))
 source("code/functions.R")
 
 # load cleaned data and drop group for now - causes eror with pwOrthReg function when assigning latin_name to group
-dat <- data.table::fread("data/processed/03_clean.csv")
-
+#dat <- data.table::fread("data/processed/03_clean.csv")
+dat <- data.table::fread("data/processed/00_data.csv")
 #===========================================================#
 # Figure 2 - Boyd COPAS data vs. ImageXpress
 #===========================================================#
