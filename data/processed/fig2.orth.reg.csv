@@ -1,2 +1,2 @@
 x,y,orth.reg.n.observations,orth.reg.slope,orth.reg.intercept,orth.reg.ssq,orth.reg.mse,orth.reg.r.squared
-Caenorhabditis elegans:EC10:2:Growth,Caenorhabditis elegans:AC50:NA:Growth,9,0.948461170785104,0.107464975598707,2.46231415308898,0.519706583687302,0.555972908705191
+Caenorhabditis elegans:EC10:2:Growth,Caenorhabditis elegans:AC50:NA:Growth,10,1.20157403449205,-0.07604755176841,2.89208041920565,0.706760875063628,0.552895752943079

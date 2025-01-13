@@ -360,7 +360,8 @@ proc_zf_scholz <- zf_scholz %>%
 enviroTox <- readxl::read_excel("data/raw/envirotox_20240729124104.xlsx",
                    na = c("NA", ""),
                    sheet = "test") %>%
-  dplyr::mutate(strain = NA_character_)
+  dplyr::mutate(strain = NA_character_) %>%
+  dplyr::mutate(CAS = ifelse(is.na(CAS), `original CAS`, CAS)) # fix missing CAS numbers
 
 # Need to clean up the source2, source columns
 proc_enviroTox <- enviroTox %>%
@@ -401,6 +402,8 @@ length(orig_eps)
 # shorten the endpoint list
 proc_enviroTox2 <- proc_enviroTox %>%
   dplyr::filter(endpoint %in% enviroTox_eps$endpoint)
+
+# Leave all of these endpoints in these data
 #===================================================================#
 # Step 7: Read NIEHS_ICE folder
 #===================================================================#

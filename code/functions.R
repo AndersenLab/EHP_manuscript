@@ -244,8 +244,8 @@ orthReg <- function(data, x, y, min.cases = 3, plot = F){
     ggplot2::geom_errorbarh(aes(xmin = min_x, xmax = max_x), height = 0, size = 0.25, color = "grey70") +
     ggplot2::geom_point(shape = 21, fill = "red", color = "black") +
     ggplot2::theme_bw() +
-    ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(μg/L)"),
-                  y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(μg/L)"),
+    ggplot2::labs(x = bquote(~italic(.(x[1]))~"toxicity"~.(x[2])~"(mg/L)"),
+                  y = bquote(~italic(.(y[1]))~"toxicity"~.(y[2])~"(mg/L)"),
                   subtitle = glue::glue("x={x[1]}_{x[2]}_{x[3]}d_{x[4]}\ny={y[1]}_{y[2]}_{y[3]}d_{y[4]}")) +
     ggplot2::scale_x_log10(
       breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -402,7 +402,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, pl
     orthReg.list[[i]] <- orthReg.out$result
     }
     if(plot == T) {
-      # perform orthogonal regression without plotting
+      # perform orthogonal regression with plotting
       #debug(orthReg.safe)
       orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = T)
       #orthReg.out <- orthReg(data = pair.dat, x = x, y = y, plot = T)
