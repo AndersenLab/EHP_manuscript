@@ -113,7 +113,9 @@ mse_odreg <- function(object){
 # y is as x, code NAs as "NA"
 # min.cases is the minimum number of observations required to perform the regression?
 # plot is true to output a plot. If false, the default, no plot is made.
-orthReg <- function(data, x, y, min.cases = 3, plot = F){
+# QC is either "filter" or NULL. The default = NULL, no action.
+# "filter" will remove the failed QC from the dataframe. 
+orthReg <- function(data, x, y, min.cases = 3, QC = "ignore", plot = F){
 
   # make a list to hold it all
   out <- NULL
@@ -134,6 +136,15 @@ orthReg <- function(data, x, y, min.cases = 3, plot = F){
                   min = min(effect_value),
                   max = max(effect_value)) %>% # get geometric mean for chemical and pair
     dplyr::ungroup()
+  
+  # QC filter?
+  if(QC == "filter") {
+    all_focal_dat <- all_focal_dat %>%
+      dplyr::filter(QC == "PASS" | is.na(QC))
+  }
+  if(QC == "ignore") {
+    all_focal_dat <- all_focal_dat
+  }
   
   # reshape for plotting
   plot_dat <- all_focal_dat %>%
@@ -274,7 +285,7 @@ orthReg <- function(data, x, y, min.cases = 3, plot = F){
 #============================================================#
 # Pairwise orthogonal Regression function
 #============================================================#
-pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, plot = F){
+pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC = "ignore", plot = F){
   # fix error if group is not "group"
   if(group != "group"){
     data = data %>%
@@ -385,7 +396,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, pl
     
     if(plot == F) {
     # perform orthogonal regression without plotting
-    orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = F)
+    orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, QC = QC, plot = F)
     
     # handle orthReg.safe output with errors
     if(is.null(orthReg.out$result)){
@@ -404,7 +415,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, pl
     if(plot == T) {
       # perform orthogonal regression with plotting
       #debug(orthReg.safe)
-      orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, plot = T)
+      orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, QC = QC, plot = T)
       #orthReg.out <- orthReg(data = pair.dat, x = x, y = y, plot = T)
       
       # handle orthReg.safe output with errors

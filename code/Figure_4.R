@@ -37,22 +37,43 @@ df4a <- dat %>%
   dplyr::mutate(endpoint = endpoint2) %>%
   dplyr::select(-endpoint2)
 
-# run the orth regressions across all pairs to NEMATODE
-or4a <- pwOrthReg(data = df4a, group = "group",  min.n = 5, message = F, plot = T)
+# run the orth regressions across all pairs to NEMATODE with QC filter
+or4a_QC <- pwOrthReg(data = df4a, group = "group",  limit.comp = "NEMATODE", min.n = 5, message = T, QC = "filter", plot = T)
+or4adf_QC <- data.table::rbindlist(or4a_QC$orthregs)
+print(glue::glue("slope = {round(or4adf_QC[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf_QC[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf_QC[1]$orth.reg.r.squared, digits = 2)}"))
+or4ap_QC <- or4a_QC$plots[[1]]
+or4a_QC$plots[[1]]
+or4a_QC$plots[[2]]
+or4a_QC$plots[[3]]
+print(glue::glue("slope = {round(or4adf_QC[3]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf_QC[3]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf_QC[3]$orth.reg.r.squared, digits = 2)}"))
+
+# run the orth regressions across all pairs to NEMATODE without QC filter
+or4a <- pwOrthReg(data = df4a, group = "group",  limit.comp = "NEMATODE", min.n = 5, QC = "ignore", message = T, plot = T)
 or4adf <- data.table::rbindlist(or4a$orthregs)
 print(glue::glue("slope = {round(or4adf[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf[1]$orth.reg.r.squared, digits = 2)}"))
 or4ap <- or4a$plots[[1]]
 or4a$plots[[1]]
 or4a$plots[[2]]
 or4a$plots[[3]]
-or4a$plots[[4]]
-or4a$plots[[5]]
-or4a$plots[[6]]
-# need to add option to color QC fail data or filter QC fail data to orthReg function.
+test <- or4a$plots[[3]]$data
+print(glue::glue("slope = {round(or4adf[3]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf[3]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf[3]$orth.reg.r.squared, digits = 2)}"))
+
+# Look at Boyd chems shared with Widmayer and compare to FISH
+wb_overlap_fish <- df4a %>%
+  dplyr::filter(chem_name %in% or4a$plots[[1]]$data$chem_name)
+or4a2 <- pwOrthReg(data = wb_overlap_fish, group = "group",  limit.comp = "NEMATODE", min.n = 5, QC = "ignore", message = T, plot = T)
+or4adf2 <- data.table::rbindlist(or4a2$orthregs)
+or4a2$plots[[3]]
+print(glue::glue("slope = {round(or4adf2[3]$orth.reg.slope, digits = 2)}, y-intercept = {round(or4adf2[3]$orth.reg.intercept, digits = 2)}, r^2 = {round(or4adf2[3]$orth.reg.r.squared, digits = 2)}"))
+
+
+
+
+# need to add option to color QC fail data or filter QC fail data to orthReg function. - DONE, QC filter makes fit worse
 # this will help visualize issues with the Boyd data
 # consider adding a QC filter to enviroTox DB if endpoint changed? and flag that too?
 # add notes to EHP manuscript DB in notion
-new_chems <- or4a$plots[[1]]$data %>% dplyr::pull(chem_name)
+
 
 # run regression to NEMATODE_COPAS1
 or4a <- pwOrthReg(data = df4a, group = "group", limit.comp = "NEMATODE_COPAS1", min.n = 5, message = F, plot = T)
