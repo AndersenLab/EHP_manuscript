@@ -37,9 +37,6 @@ cowplot::ggsave2(Padilla, filename = "plots/TC_padilla.png", width = 15, height 
 #------------------------------------------------------------------------------#
 # Part 1b: look at all high quality Padilla data
 #------------------------------------------------------------------------------#
-TC_padilla_qc <- TC_padilla %>%
-  dplyr::filter(ifelse(QC == "PASS" | is.na(QC))
-
 # run the orth regressions across all pairs to NEMATODE with QC filter
 or1_qc <- pwOrthReg(data = TC_padilla, group = "group",  limit.comp = "NEMATODE", min.n = 5, message = T, QC = "filter", plot = T)
 or1df_qc <- data.table::rbindlist(or1_qc$orthregs)
@@ -48,6 +45,34 @@ print(glue::glue("slope = {round(or1df_qc[1]$orth.reg.slope, digits = 2)}, y-int
 Padilla_qc <- cowplot::plot_grid(plotlist = or1_qc$plots, ncol = 4)
 or1_qc$plots[[1]]
 
+cowplot::ggsave2(Padilla_qc, filename = "plots/TC_padilla_qc_filter.png", width = 15, height = 15)
+
+# look at original data for Padilla
+orig_padilla <- data.table::fread("data/processed/03_clean.csv") %>%
+  dplyr::filter(grepl(source, pattern = "Padilla")) %>%
+  dplyr::arrange(chem_name)
+
+new_padilla <- TC_padilla %>%
+  dplyr::filter(group == "TC_ZF_Padilla" & test_statistic == "AC50") %>%
+  dplyr::arrange(chem_name) %>%
+  dplyr::filter(chem_name %in% orig_padilla$chem_name) %>%
+  dplyr::select(chem_name, cas, effect_value_new = effect_value)
+
+join_padilla <- left_join(orig_padilla, new_padilla)
+
+comp <- ggplot(join_padilla) +
+  aes(x = effect_value_new, y = effect_value) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "black") +
+  geom_point() +
+  theme_bw() +
+  ggrepel::geom_label_repel(aes(label = chem_name),
+                  box.padding   = 0.35, 
+                  point.padding = 0.5,
+                  segment.color = 'grey50') +
+  labs(x = "TC_ZF_Padilla new AC50 (mg/L)", y = "ZF_EMBRYO1 original AC50 (mg/L)")
+
+cowplot::ggsave2(comp, filename = glue::glue("plots/{today}_TC_padilla_new_vs_ZF_EMBRYO1_orig.png"), width = 6, height = 6)
+rio::export(join_padilla, file = glue::glue("data/processed/{today}_TC_padilla_new_vs_ZF_EMBRYO1_orig.csv"))
 #------------------------------------------------------------------------------#
 # Part 2: look at all Tanguay data
 #------------------------------------------------------------------------------#
