@@ -120,6 +120,15 @@ orthReg <- function(data, x, y, min.cases = 3, QC = "ignore", plot = F){
   # make a list to hold it all
   out <- NULL
   
+  # QC filter?
+  if(QC == "filter") {
+    data <- data %>%
+      dplyr::filter(QC == "PASS" | is.na(QC))
+  }
+  if(QC == "ignore") {
+    data <- data
+  }
+  
   # filter data to focal taxa and and geometric mean for group
   all_focal_dat <- data %>%
     dplyr::mutate(duration_d = ifelse(is.na(duration_d), "NA", duration_d)) %>% # THIS STEP HANDELS NAs in duration data
@@ -137,14 +146,7 @@ orthReg <- function(data, x, y, min.cases = 3, QC = "ignore", plot = F){
                   max = max(effect_value)) %>% # get geometric mean for chemical and pair
     dplyr::ungroup()
   
-  # QC filter?
-  if(QC == "filter") {
-    all_focal_dat <- all_focal_dat %>%
-      dplyr::filter(QC == "PASS" | is.na(QC))
-  }
-  if(QC == "ignore") {
-    all_focal_dat <- all_focal_dat
-  }
+  
   
   # reshape for plotting
   plot_dat <- all_focal_dat %>%

@@ -35,6 +35,20 @@ or1$plots[[1]]
 cowplot::ggsave2(Padilla, filename = "plots/TC_padilla.png", width = 15, height = 15)
 
 #------------------------------------------------------------------------------#
+# Part 1b: look at all high quality Padilla data
+#------------------------------------------------------------------------------#
+TC_padilla_qc <- TC_padilla %>%
+  dplyr::filter(ifelse(QC == "PASS" | is.na(QC))
+
+# run the orth regressions across all pairs to NEMATODE with QC filter
+or1_qc <- pwOrthReg(data = TC_padilla, group = "group",  limit.comp = "NEMATODE", min.n = 5, message = T, QC = "filter", plot = T)
+or1df_qc <- data.table::rbindlist(or1_qc$orthregs)
+# highest r2
+print(glue::glue("slope = {round(or1df_qc[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or1df_qc[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or1df_qc[1]$orth.reg.r.squared, digits = 2)}"))
+Padilla_qc <- cowplot::plot_grid(plotlist = or1_qc$plots, ncol = 4)
+or1_qc$plots[[1]]
+
+#------------------------------------------------------------------------------#
 # Part 2: look at all Tanguay data
 #------------------------------------------------------------------------------#
 TC_tang <- dat %>%
