@@ -27,6 +27,7 @@ TC_padilla <- dat %>%
 # run the orth regressions across all pairs to NEMATODE with QC filter
 or1 <- pwOrthReg(data = TC_padilla, group = "group",  limit.comp = "NEMATODE", min.n = 5, message = T, QC = "ignore", plot = T)
 or1df <- data.table::rbindlist(or1$orthregs)
+or1df2 <- data.table::rbindlist(or1$normRegs)
 # highest r2
 print(glue::glue("slope = {round(or1df[1]$orth.reg.slope, digits = 2)}, y-intercept = {round(or1df[1]$orth.reg.intercept, digits = 2)}, r^2 = {round(or1df[1]$orth.reg.r.squared, digits = 2)}"))
 Padilla <- cowplot::plot_grid(plotlist = or1$plots, ncol = 4)

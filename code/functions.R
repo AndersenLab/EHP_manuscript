@@ -93,7 +93,6 @@ distFromIdeal <- function(data, plot = T) {
 }
 
 #======================================================================#
-# CAUTION!!! NOT TESTED!!!
 # Pull out mean squared error and r-squared from orthReg model
 #======================================================================#
 # r squared - https://stackoverflow.com/questions/75067630/orthogonal-linear-regression-total-least-squares-fit-get-rmse-and-r-squared-i
@@ -106,6 +105,86 @@ mse_odreg <- function(object){
   mean(object$resid^2)
 }
 
+#======================================================================#
+# Run Pearson's product-moment correlation
+#======================================================================#
+# Testing - run zebrafish.R etox data
+#data <- or4$plots[[1]]$data 
+
+normReg <- function(data, x, y, min.cases = 3, QC = "ignore") {
+  # make a list to hold it all
+  out <- NULL
+  
+  # QC filter?
+  if(QC == "filter") {
+    data <- data %>%
+      dplyr::filter(QC == "PASS" | is.na(QC))
+  }
+  if(QC == "ignore") {
+    data <- data
+  }
+  
+  # filter data to focal taxa and and geometric mean for group
+  all_focal_dat <- data %>%
+    dplyr::mutate(duration_d = ifelse(is.na(duration_d), "NA", duration_d)) %>% # THIS STEP HANDELS NAs in duration data
+    dplyr::mutate(endpoint = ifelse(is.na(endpoint), "NA", endpoint)) %>% # THIS STEP HANDELS NAs in endpoint data???????
+    dplyr::mutate(pair = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] & endpoint == x[4] ~ x[1],
+                                          (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] & endpoint == y[4] ~ y[1],
+                                          TRUE ~ NA_character_),
+                  pair_gen = dplyr::case_when((latin_name == x[1] | group == x[1]) & test_statistic == x[2] & duration_d == x[3] & endpoint == x[4] ~ "x",
+                                              (latin_name == y[1] | group == y[1]) & test_statistic == y[2] & duration_d == y[3] & endpoint == y[4] ~ "y",
+                                              TRUE ~ NA_character_)) %>% # label pairs, should handle giving a group or a latin_name since they are unique
+    dplyr::filter(!is.na(pair_gen)) %>% # filter to pairs with labels NEW pair_gen OLD pair
+    dplyr::group_by(cas, pair_gen) %>% # NEW pair_gen OLD pair
+    dplyr::mutate(gm_mean = gm_mean(effect_value),
+                  min = min(effect_value),
+                  max = max(effect_value)) %>% # get geometric mean for chemical and pair
+    dplyr::ungroup()
+  
+  
+  
+  # reshape for plotting
+  plot_dat <- all_focal_dat %>%
+    dplyr::distinct(chem_name, pair_gen, gm_mean, min, max) %>% # just get geom mean and ranges
+    tidyr::pivot_wider(names_from = pair_gen, values_from = c(gm_mean, min, max)) %>% # give us x and a y vars
+    dplyr::filter(complete.cases(.)) # keep only complete cases
+  
+  # handle case number filter
+  if((nrow(plot_dat) < min.cases)) {
+    # build output
+    regdf <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                            y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                            reg.n.observations = nrow(plot_dat),
+                            reg.slope = NA_real_,
+                            reg.intercept = NA_real_,
+                            reg.r.squared = NA_real_,
+                            reg.r.pearson = NA_real_,
+                            reg.r.pvalue = NA_real_,
+                            reg.df = NA_real_)
+    # return Reg df
+    return(reg_df)
+  } 
+  else {
+    # perform regression
+    lm_fit <- lm(log10(plot_dat$gm_mean_y) ~ log10(plot_dat$gm_mean_x))
+    lm_s <- summary(lm_fit)
+    # get pearson
+    p_cor <- cor.test(x = log10(plot_dat$gm_mean_x), y = log10(plot_dat$gm_mean_y))
+    
+    # build output
+    reg_df <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                            y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                            reg.n.observations = nrow(plot_dat),
+                            reg.slope = round(lm_s$coefficients[2], digits = 3),
+                            reg.intercept = round(lm_s$coefficients[1], digits = 3),
+                            reg.r.squared = round(lm_s$r.squared, digits = 3),
+                            reg.r.pearson = round(unname(p_cor$estimate), digits = 3),
+                            reg.r.pvalue = round(unname(p_cor$p.value), digits = 3),
+                            reg.df = round(unname(p_cor$parameter), digits = 3))
+    # return Reg df
+    return(reg_df)
+  }
+}
 #======================================================================#
 # function for data selection, shaping, orthogonal regression, plotting 
 #======================================================================#
@@ -358,9 +437,11 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
   
   # make a safe funciton for looping
   orthReg.safe <- purrr::safely(orthReg)
+  normReg.safe <- purrr::safely(normReg)
   
-  # setup a list to hold output
+  # setup a list to hold outputs
   orthReg.list <- NULL
+  normReg.list <- NULL
   
   # add plot list if needed
   if(plot == TRUE) {
@@ -389,7 +470,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
     
     # make a message for running
     if(message == T){
-      message(glue::glue("running orthReg for {i} of {length(pairs.list)} pairs - {paste0(pairs.list[[i]], collapse =' ')}"))
+      message(glue::glue("running orthReg and normReg for {i} of {length(pairs.list)} pairs - {paste0(pairs.list[[i]], collapse =' ')}"))
     }
     if(message == F){
       # Update the progress bar
@@ -399,6 +480,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
     if(plot == F) {
     # perform orthogonal regression without plotting
     orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, QC = QC, plot = F)
+    normReg.out <- normReg.safe(data = pair.dat, x = x, y = y, QC = QC)
     
     # handle orthReg.safe output with errors
     if(is.null(orthReg.out$result)){
@@ -411,14 +493,26 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
                                            orth.reg.mse = NA_real_,
                                            orth.reg.r.squared = NA_real_)
     }
+    # handle normReg.safe output with errors
+    if(is.null(normReg.out$result)){
+      normReg.out$result <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                           y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                           reg.n.observations = NA_real_,
+                                           reg.slope = NA_real_,
+                                           reg.intercept = NA_real_,
+                                           reg.r.squared = NA_real_,
+                                           reg.r.pearson = NA_real_,
+                                           reg.r.pvalue = NA_real_,
+                                           reg.df = NA_real_)
+    }
     # add to the output list
     orthReg.list[[i]] <- orthReg.out$result
+    normReg.list[[i]] <- normReg.out$result
     }
     if(plot == T) {
       # perform orthogonal regression with plotting
-      #debug(orthReg.safe)
       orthReg.out <- orthReg.safe(data = pair.dat, x = x, y = y, QC = QC, plot = T)
-      #orthReg.out <- orthReg(data = pair.dat, x = x, y = y, plot = T)
+      normReg.out <- normReg.safe(data = pair.dat, x = x, y = y, QC = QC)
       
       # handle orthReg.safe output with errors
       if(is.null(orthReg.out$result)){
@@ -432,19 +526,32 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
                                              orth.reg.r.squared = NA_real_)
         orthReg.out$result$plot <- ggplot2::ggplot()
       }
-      
+      # handle normReg.safe output with errors
+      if(is.null(normReg.out$result)){
+        normReg.out$result <- tibble::tibble(x = paste(x[1], x[2], x[3], x[4], sep = ":"),
+                                             y = paste(y[1], y[2], y[3], y[4], sep = ":"),
+                                             reg.n.observations = NA_real_,
+                                             reg.slope = NA_real_,
+                                             reg.intercept = NA_real_,
+                                             reg.r.squared = NA_real_,
+                                             reg.r.pearson = NA_real_,
+                                             reg.r.pvalue = NA_real_,
+                                             reg.df = NA_real_)
+      }
       # add to the output list
       orthReg.list[[i]] <- orthReg.out$result$orthreg_df
+      normReg.list[[i]] <- normReg.out$result
       plot.list[[i]] <- orthReg.out$result$plot
     }
   }
   if(plot == FALSE){
   # return
-  return(orthReg.list)
+    out <- list(orthregs = orthReg.list, normRegs = normReg.list,)
+  return(out)
   }
   if(plot == TRUE){
     # return
-    orthReg.plot.list <- list(orthregs = orthReg.list, plots = plot.list)
-    return(orthReg.plot.list)
+    out <- list(orthregs = orthReg.list, normRegs = normReg.list, plots = plot.list)
+    return(out)
   }
 }
