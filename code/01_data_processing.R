@@ -4,35 +4,10 @@ library(tidyverse)
 # set working dir to base directory of repository
 setwd(paste0(dirname(rstudioapi::getActiveDocumentContext()$path),"/.."))
 
-#==============================================================================#
-# Testing: Get original cleaned data and match coded data processing
-#==============================================================================#
-orig <- data.table::fread("data/processed/03_clean.csv") %>%
-  dplyr::mutate(orig_source = NA_character_, .after = source) %>%
-  dplyr::mutate(QC = NA_character_)
-
 #===================================================================#
 # Step 1: Read in Widmayer data and make list of 18 chemicals
 #===================================================================#
-# output the CAS#s tested in Widmayer 2022, these are the wrong CAS numbers!
-# https://github.com/AndersenLab/toxin_dose_responses/blob/master/manuscript_tables/supp.table.1.csv file is not correct!
-# DO NOT USE
-# 1910425 = paraquat ce - RIGHT
-# 75365730 = paraquat all_cas - WRONG
-# 7646857 = Zinc chloride ce - RIGHT
-# 646857 = Zinc dichloride all_cas
-# all_cas <- data.table::fread("data/raw/Widmayer_2022_cas.csv") %>%
-#  dplyr::mutate(cas = stringr::str_replace_all(CAS, pattern = "-", replacement = "")) %>% # fix cas to match ce
-#  dplyr::mutate(cas = case_when(Toxicant == "Methylmercury dichloride" ~ 115093,
-#                                Toxicant == "Aldicarb" ~ 116063,
-#                                Toxicant == "Paraquat" ~ 1910425,
-#                                Toxicant == "Zinc dichloride" ~ 7646857)) 
-#  dplyr::select(chem_name = Toxicant, cas)
-# rio::export(all_cas, file = "data/processed/archive/toxicant_cas.csv")
-# pull in CAS numbers and molecular weights from the data/processed/toxcast_mw.xlsx file
-# that was exported from toxcast. Note, this file has a missing MW for Mancozeb.
-
-# read in raw C. elegans data from SG: 18 chemicals from 22 total raw, could add anthelmintics
+# read in raw C. elegans data from SG: 18 chemicals from 22 total raw
 ce <- readxl::read_excel("data/raw/Data_Andersen_All.xlsx", na = c("NA", "")) %>%
   dplyr::filter(source == "Widmayer 2022")  %>%
   dplyr::mutate(effect_unit = ifelse(effect_unit == "mg/l", "mg/L", effect_unit)) %>% # fix mg/l
@@ -42,66 +17,6 @@ ce <- readxl::read_excel("data/raw/Data_Andersen_All.xlsx", na = c("NA", "")) %>
   dplyr::mutate(orig_source = "Widmayer et al. 2022", .after = source) %>%
   dplyr::mutate(QC = NA_character_) # add QC to match
 length(unique(ce$chem_name))
-
-# ADD ce anthelmintics
-ce_a <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
-  tidyr::pivot_longer(cols = 2:7, names_to = "strain") %>%
-  dplyr::mutate(effect_value_um = as.numeric(str_extract(value, "^[0-9\\.eE+-]+")),
-                effect_value = effect_value_um * mol_wt * 1/1e3) %>% # convert to mg/L
-  dplyr::mutate(test_statistic = "EC10",
-                cas = ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-")),
-                group = "NEMATODE",
-                latin_name = "Caenorhabditis elegans",
-                test_type = NA_character_,
-                duration_d = 2,
-                effect_unit = "mg/L",
-                source = "Shaver et al. 2023",
-                orig_source = "Shaver et al. 2023",
-                endpoint = "Growth",
-                QC = NA_character_) %>%
-  dplyr::select(cas, chem_name = Anthelmintic, group, latin_name, strain, test_type,
-                test_statistic, duration_d, effect_value, effect_unit, source, orig_source, endpoint, QC) %>%
-  dplyr::filter(chem_name != "" & cas != "")
-
-# Grab daphnia and fish anthelmintics from manual curation
-other_a <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
-  dplyr::select(-2:-7) %>%
-  dplyr::mutate(cas = ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-")),
-                effect_unit = "mg/L",
-                source = "Manual Anthelmintic",
-                orig_source = "Manual Anthelmintic") %>%
-  mutate(across(where(is.character), ~na_if(.x, "Data doesn't exist")),
-         flag = ifelse((is.na(`Daphnia EC50 (48h, mg/L)`) & is.na(`Fish LC50 (96h, mg/L)`)), "drop", "keep")) %>% # drop non-existing data
-  dplyr::filter(cas != "", EnviroTox != "YES", flag == "keep") %>%
-  dplyr::mutate(daphnia_val = sapply(str_extract_all(`Daphnia EC50 (48h, mg/L)`, "\\d+\\.?\\d*"), paste, collapse = ", "),
-         fish_val = sapply(str_extract_all(`Fish LC50 (96h, mg/L)`, "\\d+\\.?\\d*"), paste, collapse = ", ")) %>%
-  dplyr::mutate(across(where(is.character), ~na_if(.x, "NA"))) %>%
-  tidyr::pivot_longer(cols = c("daphnia_val", "fish_val")) %>%
-  dplyr::mutate(group = ifelse(name == "daphnia_val", "INVERT", "FISH"),
-                latin_name = ifelse(name == "daphnia_val", "daphnia", NA_character_),
-                strain = NA_character_,
-                test_type = NA_character_,
-                test_statistic = ifelse(name == "daphnia_val", "EC50", "LC50"),
-                duration_d = ifelse(name == "daphnia_val", 2, 4),
-                effect_value = value,
-                endpoint = "Mortality",
-                QC = NA_character_) %>%
-  dplyr::select(cas, chem_name = Anthelmintic, group, latin_name, strain, test_type,
-                test_statistic, duration_d, effect_value, effect_unit, source, orig_source, endpoint, QC) %>%
-  tidyr::separate_rows(effect_value, sep = ",\\s*") %>%
-  dplyr::mutate(effect_value = as.numeric(effect_value))
-
-# bind the anthelminitics together
-anthelmintics <- dplyr::bind_rows(ce_a, other_a)
-
-# get chemical names, cas, and molecular weight data from toxcast_mw and edit mancozeb
-# Also, paraquat CAS is for paraquat dichloride with MW of ~257, which might not match paraquat used in other studies.
-cas_a_df <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
-  dplyr::mutate(cas = as.numeric(ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-"))),
-                chem_name = Anthelmintic,
-                AVERAGE_MASS = mol_wt) %>%
-  dplyr::filter(mol_wt != "" & cas != "") %>%
-  dplyr::select(cas, chem_name, AVERAGE_MASS)
                 
 cas_df <- readxl::read_excel("data/raw/toxcast_mw.xlsx") %>%
   dplyr::mutate(INPUT = as.character(INPUT)) %>%
@@ -113,27 +28,12 @@ cas_df <- readxl::read_excel("data/raw/toxcast_mw.xlsx") %>%
   dplyr::left_join(dplyr::select(ce, cas, chem_name)) %>%
   dplyr::distinct(chem_name, .keep_all = T) %>%
   dplyr::filter(!is.na(chem_name)) %>% # remove paraquat and keep only paraquat dichloride cas
-  dplyr::select(cas, chem_name, AVERAGE_MASS) %>%
-  dplyr::bind_rows(cas_a_df) # add the anthelmintics
+  dplyr::select(cas, chem_name, AVERAGE_MASS) 
 #===================================================================#
 # Step 2: Pull the Boyd data from the EHP file and keep all good chems
 #===================================================================#
-# # read in original boyd data from Scott: 763 raw observations, 
-# boyd_orig <- readxl::read_excel("data/raw/Data_Boyd_EnviroTox.xlsx", na = c("NA", "")) %>%
-#   dplyr::filter(source == "Boyd et al")
-# length(unique(boyd_orig$cas))
-# # get list of boyd chems 467 pass filter, 459 not in Widmayer (8 overlap)
-# boyd_chem <- boyd %>%
-#   dplyr::distinct(CAS, .keep_all = T) %>% # remvoe dups
-#   dplyr::filter(!is.na(CAS)) %>% # remove NOCAS
-#   dplyr::select(cas = CAS, chem_name = Name) %>%
-#   dplyr::filter(!(cas %in% cas_df$cas)) # remove chems that overlap with widmayer for now
-# 
-# # output the cas numbers, these are loaded into toxcast dashboard to output molecular weights
-# rio::export(boyd_chem, "data/processed/boyd_chem.csv")
-
 # Molecular weights are added to complete cas list from boyd and adding widmayer
-all_ce_cas <- readxl::read_excel("data/raw/toxcast_boyd_mw.xlsx") %>%
+all_ce_cas <- readxl::read_excel("data/raw/Boyd/toxcast_boyd_mw.xlsx") %>%
   dplyr::select(CASRN = INPUT, AVERAGE_MASS, PREFERRED_NAME) %>%
   dplyr::mutate(cas = stringr::str_replace_all(CASRN, pattern = "-", replacement = ""),
                 cas = as.numeric(cas)) %>%
@@ -141,11 +41,10 @@ all_ce_cas <- readxl::read_excel("data/raw/toxcast_boyd_mw.xlsx") %>%
   dplyr::mutate(AVERAGE_MASS = ifelse(cas == 27176870, 326.49, AVERAGE_MASS)) %>%
   dplyr::select(cas, chem_name = PREFERRED_NAME, AVERAGE_MASS) %>%
   dplyr::filter(!(cas %in% cas_df$cas)) %>%
-  dplyr::bind_rows(cas_df) # add back the Widmayer 2022 compounds
+  dplyr::bind_rows(cas_df) # add back the Widmayer 2022 compounds AND the Shaver compounds
 
 # read in boyd data, convert AC50 to mg/L, filter out extrapolated AC50s.
-boyd <- #data.table::fread("data/raw/Boyd/ehp.1409645.s002.csv") %>%
-  readxl::read_excel("data/raw/Boyd/ehp.1409645.s002.xlsx", sheet = "Excel Table S2") %>%
+boyd <- readxl::read_excel("data/raw/Boyd/ehp.1409645.s002.xlsx", sheet = "Excel Table S2") %>%
   janitor::row_to_names(1) %>% # set names
   dplyr::mutate(CAS = stringr::str_replace_all(CASRN, pattern = "-", replacement = "")) %>%
   dplyr::filter(!(grepl(CAS, pattern = "NOCAS"))) %>%
@@ -232,10 +131,10 @@ proc_comptox <- comptox %>%
 # Step 5: Load zebrafish data from toxcast Rdata file
 #===================================================================#
 # load the mc5 toxcast data
-load("data/processed/mc5-6_winning_model_fits-flags_invitrodb_v4_1_SEPT2023.Rdata")
+load("data/raw/toxcast_data/mc5-6_winning_model_fits-flags_invitrodb_v4_1_SEPT2023.Rdata")
 
 # Get assay description data so we can use biological_process_target (BPT) to filter to relevant assays
-assays <- readxl::read_excel("data/raw/assay_annotations_invitrodb_v4_1_SEPT2023.xlsx", sheet = "annotations_combined")
+assays <- readxl::read_excel("data/raw/toxcast_data/assay_annotations_invitrodb_v4_1_SEPT2023.xlsx", sheet = "annotations_combined")
 
 # view all the assay biological targets
 sort(unique(assays$biological_process_target))
@@ -352,38 +251,6 @@ zf_scholz %>%
   dplyr::group_by(name) %>%
   dplyr::summarise(nchem = length(unique(cas)))
   
-# All the LC50 0-120 (140) hpf (mg/L) values are from Padilla et al. 2012...
-# I can't recreate know how scholz calculated the padilla et al. 2012 data into an LC50, best left as separate data source
-# The scholz data are not identical to toxcast data, which makes sense because toxcast has TERATOSCORE for Padilla not mortality, still they are close
-scholz_v_toxcast <- zf_scholz %>%
-  dplyr::select(`Common name`, cas, `LC50 0-120 (140) hpf (mg/L)`, source = 92) %>%
-  dplyr::filter(source == "Padilla et al. 2012") %>%
-  dplyr::filter(!is.na(`LC50 0-120 (140) hpf (mg/L)`)) %>%
-  dplyr::left_join(dplyr::filter(proc_zf1, group == "TC_ZF_Padilla", test_statistic == "AC50") %>% dplyr::select(cas, effect_value, duration_d)) %>%
-  dplyr::group_by(cas) %>%
-  dplyr::mutate(mean_ev = mean(effect_value),
-                geometric_mean_ev = (prod(effect_value)^(1/n()))) %>% # datasets are often different and neither matches the table 1 in padilla et al. 2012
-  dplyr::arrange(cas)
-
-# are the LC50 0-120 (140) hpf (mg/L) and LC50 0-120 hpf (mg/L) values similar?
-# No not very often, we can flag the padilla with a QC flag b/c I don't know what 120 hpf (140) means anyway.
-scholz_v_120_test <- zf_scholz %>%
-  dplyr::select(cas, chnm = `Common name`, `LC50 0-120 (140) hpf (mg/L)`, `LC50 0-120 hpf (mg/L)`, orig_source = 92) %>%
-  dplyr::mutate(value = ifelse(orig_source == "Padilla et al. 2012", `LC50 0-120 (140) hpf (mg/L)`, `LC50 0-120 hpf (mg/L)`),
-                group = ifelse(orig_source == "Padilla et al. 2012", "Padilla et al. 2012", "other")) %>%
-  dplyr::filter(!is.na(value)) %>%
-  dplyr::group_by(chnm, group) %>%
-  dplyr::mutate(mean = mean(value)) %>%
-  dplyr::distinct(chnm, group, mean) %>%
-  dplyr::ungroup() %>%
-  tidyr::pivot_wider(names_from = group, values_from = mean) %>%
-  dplyr::mutate(diff = `Padilla et al. 2012` - other) %>%
-  dplyr::filter(!is.na(diff))
-
-ggplot(scholz_v_120_test) +
-  aes(x = `Padilla et al. 2012`, y = other) +
-  ggplot2::geom_point()
-
 # process the scholz data
 proc_zf_scholz <- zf_scholz %>%
   dplyr::select(`Common name`, cas,
@@ -433,14 +300,6 @@ proc_enviroTox <- enviroTox %>%
                 strain, test_type = `Test type`, test_statistic = `Test statistic`, duration_d,
                 effect_value = `Effect value`, effect_unit = Unit, source, orig_source = Source, endpoint = Effect, QC) 
 
-# could clean endpoints a bit - commenting out for now, but an example would be:  
-# dplyr::mutate(dplyr::case_when(endpoint %in% c("Mortality/Growth",
-#                                                  "Mortality, Mortality",
-#                                                  "Mortality, Survival") ~ "Mortality",
-#                                  endpoint == "Immobilization: Change in the failure to respond or lack of movement after mechanical stimulation." ~ "Immobility",
-#                                  endpoint == "Intoxication, Immobile" ~ "Immobility",
-#                                  TRUE ~ endpoint)
-
 # look at many endpoints
 enviroTox_eps <- proc_enviroTox %>%
   dplyr::group_by(endpoint) %>%
@@ -450,29 +309,19 @@ enviroTox_eps <- proc_enviroTox %>%
 nrow(enviroTox_eps)
 enviroTox_eps$endpoint
 
-# look at original endpoints - ok lots there too
-orig_eps <- orig %>%
-  dplyr::filter(source == "EnviroTox DB") %>%
-  dplyr::distinct(endpoint) %>%
-  dplyr::arrange(endpoint) %>%
-  dplyr::pull()
-length(orig_eps)
-
 # shorten the endpoint list
 proc_enviroTox2 <- proc_enviroTox %>%
   dplyr::filter(endpoint %in% enviroTox_eps$endpoint)
-
-# Leave all of these endpoints in these data
 #===================================================================#
 # Step 9: Read NIEHS_ICE folder
 #===================================================================#
-# read in NIEHS_ICE Folder rat derm data: 6 chems match ce cas and pass filters - dropped from study
-ice_derm <- readxl::read_excel("data/raw/NIEHS_ICE/Acute_Dermal_Toxicity.xlsx", na = c("NA", "")) %>%
-  dplyr::mutate(cas = stringr::str_replace_all(CASRN, pattern = "-", replacement = "")) %>% # fix cas to match ce
-  dplyr::filter(cas %in% all_ce_cas$cas) %>% 
-  dplyr::filter(Response != "Not available" & Endpoint == "LD50") %>%
-  dplyr::filter(is.na(`Response Modifier`))
-length(unique(ice_derm$CASRN))
+# # read in NIEHS_ICE Folder rat derm data: 6 chems match ce cas and pass filters - DROPPED FROM STUDY
+# ice_derm <- readxl::read_excel("data/raw/NIEHS_ICE/Acute_Dermal_Toxicity.xlsx", na = c("NA", "")) %>%
+#   dplyr::mutate(cas = stringr::str_replace_all(CASRN, pattern = "-", replacement = "")) %>% # fix cas to match ce
+#   dplyr::filter(cas %in% all_ce_cas$cas) %>% 
+#   dplyr::filter(Response != "Not available" & Endpoint == "LD50") %>%
+#   dplyr::filter(is.na(`Response Modifier`))
+# length(unique(ice_derm$CASRN))
 
 # read in NIEHS_ICE Folder rat oral data: 16167 raw observations, 4283 in ce chems, 2295 LD50s, 1414 pass filters
 ice_oral <- readxl::read_excel("data/raw/NIEHS_ICE/Acute_Oral_Toxicity.xlsx", na = c("NA", "")) %>%
@@ -523,13 +372,16 @@ proc_ice_dart <- ice_dart %>%
                 source = "NIEHS_ICE",
                 QC = NA_character_) %>%
   dplyr::select(names(proc_enviroTox))
+
 #===================================================================#
-# Step 10: Shape to original data format
+# Step 10: Shape final data
 #===================================================================#
 # bind the data sources together
 bind_dat <- dplyr::bind_rows(ce, proc_boyd, proc_comptox, proc_enviroTox2,
                              proc_ice_dart, proc_ice_oral, proc_kar,
-                             proc_zf_scholz, proc_zf_su, proc_zf1)
+                             proc_zf_scholz, proc_zf_su, proc_zf1) %>%
+  #dplyr::mutate(orig_source = gsub('"+', '"', orig_source))
+  dplyr::mutate(orig_source = gsub('"+', "'", orig_source))
 
 # save data
 readr::write_csv(bind_dat, file = "data/processed/00_data.csv")
@@ -543,12 +395,7 @@ n.drugs.per.sp <- bind_dat %>%
   dplyr::ungroup() %>%
   dplyr::distinct(latin_name, .keep_all = T) %>%
   dplyr::mutate(avg.n.drugs.sp = mean(n.drugs.in.sp),
-                sd.n.drugs.sp = sd(n.drugs.in.sp)) #%>%
-p <- ggplot(n.drugs.per.sp) +
-  aes(x = n.drugs.in.sp) +
-  geom_histogram(bins = 1000) +
-  theme_bw()
-p
+                sd.n.drugs.sp = sd(n.drugs.in.sp))
 n.groups <- length(unique(bind_dat$group))
 n.endpoints <- length(unique(bind_dat$endpoint))
 n.test_statistics <- length(unique(bind_dat$test_statistic))
