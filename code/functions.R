@@ -136,7 +136,7 @@ normReg <- function(data, x, y, min.cases = 3, QC = "ignore") {
                                               TRUE ~ NA_character_)) %>% # label pairs, should handle giving a group or a latin_name since they are unique
     dplyr::filter(!is.na(pair_gen)) %>% # filter to pairs with labels NEW pair_gen OLD pair
     dplyr::group_by(cas, pair_gen) %>% # NEW pair_gen OLD pair
-    dplyr::mutate(gm_mean = gm_mean(effect_value),
+    dplyr::mutate(gm_mean = gm_mean(effect_value), # take the mean TAC 20250303
                   min = min(effect_value),
                   max = max(effect_value)) %>% # get geometric mean for chemical and pair
     dplyr::ungroup()
@@ -546,7 +546,7 @@ pwOrthReg <- function(data, group, limit.comp = NULL, min.n = 5, message = F, QC
   }
   if(plot == FALSE){
   # return
-    out <- list(orthregs = orthReg.list, normRegs = normReg.list,)
+    out <- list(orthregs = orthReg.list, normRegs = normReg.list)
   return(out)
   }
   if(plot == TRUE){

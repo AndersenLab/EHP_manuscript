@@ -43,8 +43,66 @@ ce <- readxl::read_excel("data/raw/Data_Andersen_All.xlsx", na = c("NA", "")) %>
   dplyr::mutate(QC = NA_character_) # add QC to match
 length(unique(ce$chem_name))
 
+# ADD ce anthelmintics
+ce_a <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
+  tidyr::pivot_longer(cols = 2:7, names_to = "strain") %>%
+  dplyr::mutate(effect_value_um = as.numeric(str_extract(value, "^[0-9\\.eE+-]+")),
+                effect_value = effect_value_um * mol_wt * 1/1e3) %>% # convert to mg/L
+  dplyr::mutate(test_statistic = "EC10",
+                cas = ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-")),
+                group = "NEMATODE",
+                latin_name = "Caenorhabditis elegans",
+                test_type = NA_character_,
+                duration_d = 2,
+                effect_unit = "mg/L",
+                source = "Shaver et al. 2023",
+                orig_source = "Shaver et al. 2023",
+                endpoint = "Growth",
+                QC = NA_character_) %>%
+  dplyr::select(cas, chem_name = Anthelmintic, group, latin_name, strain, test_type,
+                test_statistic, duration_d, effect_value, effect_unit, source, orig_source, endpoint, QC) %>%
+  dplyr::filter(chem_name != "" & cas != "")
+
+# Grab daphnia and fish anthelmintics from manual curation
+other_a <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
+  dplyr::select(-2:-7) %>%
+  dplyr::mutate(cas = ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-")),
+                effect_unit = "mg/L",
+                source = "Manual Anthelmintic",
+                orig_source = "Manual Anthelmintic") %>%
+  mutate(across(where(is.character), ~na_if(.x, "Data doesn't exist")),
+         flag = ifelse((is.na(`Daphnia EC50 (48h, mg/L)`) & is.na(`Fish LC50 (96h, mg/L)`)), "drop", "keep")) %>% # drop non-existing data
+  dplyr::filter(cas != "", EnviroTox != "YES", flag == "keep") %>%
+  dplyr::mutate(daphnia_val = sapply(str_extract_all(`Daphnia EC50 (48h, mg/L)`, "\\d+\\.?\\d*"), paste, collapse = ", "),
+         fish_val = sapply(str_extract_all(`Fish LC50 (96h, mg/L)`, "\\d+\\.?\\d*"), paste, collapse = ", ")) %>%
+  dplyr::mutate(across(where(is.character), ~na_if(.x, "NA"))) %>%
+  tidyr::pivot_longer(cols = c("daphnia_val", "fish_val")) %>%
+  dplyr::mutate(group = ifelse(name == "daphnia_val", "INVERT", "FISH"),
+                latin_name = ifelse(name == "daphnia_val", "daphnia", NA_character_),
+                strain = NA_character_,
+                test_type = NA_character_,
+                test_statistic = ifelse(name == "daphnia_val", "EC50", "LC50"),
+                duration_d = ifelse(name == "daphnia_val", 2, 4),
+                effect_value = value,
+                endpoint = "Mortality",
+                QC = NA_character_) %>%
+  dplyr::select(cas, chem_name = Anthelmintic, group, latin_name, strain, test_type,
+                test_statistic, duration_d, effect_value, effect_unit, source, orig_source, endpoint, QC) %>%
+  tidyr::separate_rows(effect_value, sep = ",\\s*") %>%
+  dplyr::mutate(effect_value = as.numeric(effect_value))
+
+# bind the anthelminitics together
+anthelmintics <- dplyr::bind_rows(ce_a, other_a)
+
 # get chemical names, cas, and molecular weight data from toxcast_mw and edit mancozeb
 # Also, paraquat CAS is for paraquat dichloride with MW of ~257, which might not match paraquat used in other studies.
+cas_a_df <- data.table::fread("data/raw/Anthelmintics_EcoData.csv") %>%
+  dplyr::mutate(cas = as.numeric(ifelse(is.na(CAS), stringr::str_remove_all(CAS2, pattern = "-"), stringr::str_remove_all(CAS, pattern = "-"))),
+                chem_name = Anthelmintic,
+                AVERAGE_MASS = mol_wt) %>%
+  dplyr::filter(mol_wt != "" & cas != "") %>%
+  dplyr::select(cas, chem_name, AVERAGE_MASS)
+                
 cas_df <- readxl::read_excel("data/raw/toxcast_mw.xlsx") %>%
   dplyr::mutate(INPUT = as.character(INPUT)) %>%
   dplyr::distinct(.keep_all = T) %>%
@@ -55,7 +113,8 @@ cas_df <- readxl::read_excel("data/raw/toxcast_mw.xlsx") %>%
   dplyr::left_join(dplyr::select(ce, cas, chem_name)) %>%
   dplyr::distinct(chem_name, .keep_all = T) %>%
   dplyr::filter(!is.na(chem_name)) %>% # remove paraquat and keep only paraquat dichloride cas
-  dplyr::select(cas, chem_name, AVERAGE_MASS) 
+  dplyr::select(cas, chem_name, AVERAGE_MASS) %>%
+  dplyr::bind_rows(cas_a_df) # add the anthelmintics
 #===================================================================#
 # Step 2: Pull the Boyd data from the EHP file and keep all good chems
 #===================================================================#
@@ -115,7 +174,7 @@ proc_boyd <- boyd %>%
                 endpoint = "Growth") %>%
   select(cas = CAS, chem_name, group:duration_d, effect_value = AC50, effect_unit:endpoint, QC)
 #===================================================================#
-# Step 2: Read Karmaus 2022 folder (RAT_EMPIRICAL)
+# Step 3: Read Karmaus 2022 folder (RAT_EMPIRICAL)
 #===================================================================#
 # read in from Karmaus folder - 1885 chems filtered to 14 after matching ce cas
 # Pull the data from toxsci-21-0357-File010.xlsx only.
@@ -142,7 +201,7 @@ proc_kar <- kar %>%
                 QC = NA_character_) %>%
   dplyr::select(cas, chem_name, group:endpoint, QC) 
 #===================================================================#
-# Step 3: Read and process Comptox folder - RAT test model predictions
+# Step 4: Read and process Comptox folder - RAT test model predictions
 #===================================================================#
 # read in the output from comptox: 30891 raw observations, 14 pass TEST filter
 comptox <- readxl::read_excel("data/raw/Comptox/20240717_comptox_download.xlsx", na = c("NA", ""),
@@ -245,7 +304,7 @@ proc_zf1 %>%
   dplyr::group_by(group) %>%
   dplyr::summarise(chem_n = length(unique(cas)))
 #===================================================================#
-# Step 4: Read Zebrafish folder to get Su data
+# Step 6: Read Zebrafish folder to get Su data
 #===================================================================#
 # read in su data: 427 raw observations, 164 chem pass ce filter
 # Leave duration as NA, and include all
@@ -275,7 +334,7 @@ proc_zf_su <- zf_su %>%
                 QC = NA_character_) %>%
   dplyr::select(cas, chem_name, group:endpoint, QC)
 #==================================================================#
-# Step 5: Read Zebrafish folder to get Scholz et al. 2016 data
+# Step 7: Read Zebrafish folder to get Scholz et al. 2016 data
 #===================================================================
 # read in Scholz data: 11 time points, 4 time points with > 20 chems
 zf_scholz <- readxl::read_excel("data/raw/Zebrafish/Scholz et al 2016/annex2_fet_en.xlsx",
@@ -354,7 +413,7 @@ proc_zf_scholz <- zf_scholz %>%
   dplyr::left_join(all_ce_cas) %>%
   dplyr::select(cas, chem_name, group:duration_d, effect_value, effect_unit:source, orig_source, endpoint, QC)
 #===================================================================#
-# Step 6: Get EnviroTox DB from source
+# Step 8: Get EnviroTox DB from source
 #===================================================================#
 # getting latest export of database from SG
 enviroTox <- readxl::read_excel("data/raw/envirotox_20240729124104.xlsx",
@@ -405,7 +464,7 @@ proc_enviroTox2 <- proc_enviroTox %>%
 
 # Leave all of these endpoints in these data
 #===================================================================#
-# Step 7: Read NIEHS_ICE folder
+# Step 9: Read NIEHS_ICE folder
 #===================================================================#
 # read in NIEHS_ICE Folder rat derm data: 6 chems match ce cas and pass filters - dropped from study
 ice_derm <- readxl::read_excel("data/raw/NIEHS_ICE/Acute_Dermal_Toxicity.xlsx", na = c("NA", "")) %>%
@@ -454,9 +513,9 @@ proc_ice_dart <- ice_dart %>%
   dplyr::mutate(cas = as.integer(cas)) %>%
   dplyr::left_join(dplyr::select(all_ce_cas, cas, chem_name)) %>%
   dplyr::mutate(effect_value = as.numeric(effect_value),
-                group = dplyr::case_when(Species == "Rat" ~ "NIHEHS_RAT",
-                                         Species == "Rabbit" ~ "NIHEHS_RABBIT",
-                                         Species == "Mouse" ~ "NIHEHS_MOUSE"),
+                group = dplyr::case_when(Species == "Rat" ~ "NIEHS_RAT",
+                                         Species == "Rabbit" ~ "NIEHS_RABBIT",
+                                         Species == "Mouse" ~ "NIEHS_MOUSE"),
                 latin_name = Species,
                 strain = NA_character_,
                 duration_d = NA_real_,
@@ -465,7 +524,7 @@ proc_ice_dart <- ice_dart %>%
                 QC = NA_character_) %>%
   dplyr::select(names(proc_enviroTox))
 #===================================================================#
-# Step 9: Shape to original data format
+# Step 10: Shape to original data format
 #===================================================================#
 # bind the data sources together
 bind_dat <- dplyr::bind_rows(ce, proc_boyd, proc_comptox, proc_enviroTox2,
