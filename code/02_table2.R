@@ -187,7 +187,13 @@ ALLreg_df <- data.table::rbindlist(ALLreg$orthregs) %>%
                 `Deg. freedom` = reg.df) %>%
   dplyr::mutate(N = `Deg. freedom` + 2) # calculating slope and intercept so add 2 to get N
 
-#rio::export(ALLreg_df, file = glue::glue("data/processed/{today}_table2_full_pairwise_regressions.csv"))
+#==================================================#
+# Summarize range of groups
+#==================================================#
+sumy <- ALL %>%
+  dplyr::group_by(group, test_statistic, effect_unit) %>%
+  dplyr::summarise(min_value = min(effect_value),
+                   max_value = max(effect_value))
 #===========================================================#
 # Create Table 2
 #===========================================================#
