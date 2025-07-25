@@ -302,7 +302,7 @@ fig3 <- cowplot::plot_grid(pcomp + labs(subtitle = "", x = bquote("Nematode Imag
                            or4bp + labs(subtitle = "", x = bquote("Nematode Imager" ~ EC[10] ~ "(mg/L)"), y = bquote("Invertebrate" ~ LC[50] ~ "(mg/L)")),
                            ordaphp + labs(subtitle = "", x = bquote("Nematode Imager" ~ EC[10] ~ "(mg/L)"), y = bquote(~italic("Daphnia magna") ~ LC[50] ~ "(mg/L)")),
                            labels = c("A", "B", "C", "D"), align = "vh", ncol = 2)
-cowplot::ggsave2(fig3, filename = glue::glue("figures/figure3_comps.png"), width = 7.5, height = 7.5)
+cowplot::ggsave2(fig3, filename = glue::glue("figures/figure3.png"), width = 7.5, height = 7.5)
 
 #==============================================================================#
 # Export data for figure
