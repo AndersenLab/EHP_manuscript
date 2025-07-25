@@ -1,9 +1,0 @@
-cas,chem_name,group,latin_name,strain,test_type,test_statistic,duration_d,effect_value,effect_unit,source,endpoint,effect_value_new
-116063,Aldicarb,ZF_EMBRYO1,Danio rerio,,,AC50,,10.3632747,mg/L,Padilla et al 2012,Mortality,1.51010582924017
-63252,Carbaryl,ZF_EMBRYO1,Danio rerio,,,AC50,,11.77000076,mg/L,Padilla et al 2012,Mortality,13.1994626584546
-5234684,Carboxin,ZF_EMBRYO1,Danio rerio,,,AC50,,1.206245508,mg/L,Padilla et al 2012,Mortality,1.52534408972017
-1897456,Chlorothalonil,ZF_EMBRYO1,Danio rerio,,,AC50,,0.083523399,mg/L,Padilla et al 2012,Mortality,0.0460140238857678
-2921882,Chlorpyrifos,ZF_EMBRYO1,Danio rerio,,,AC50,,2.958704586,mg/L,Padilla et al 2012,Mortality,1.72704943410601
-121755,Malathion,ZF_EMBRYO1,Danio rerio,,,AC50,,7.767939484,mg/L,Padilla et al 2012,Mortality,10.6557669050491
-16752775,Methomyl,ZF_EMBRYO1,Danio rerio,,,AC50,,6.709854436,mg/L,Padilla et al 2012,Mortality,6.4884
-175013180,Pyraclostrobin,ZF_EMBRYO1,Danio rerio,,,AC50,,0.053519519,mg/L,Padilla et al 2012,Mortality,0.0695125813848182
