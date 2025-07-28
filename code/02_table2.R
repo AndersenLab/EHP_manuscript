@@ -174,11 +174,15 @@ ALLreg_df <- data.table::rbindlist(ALLreg$orthregs) %>%
   cbind(data.table::rbindlist(ALLreg$normRegs)[,3:9]) %>%
   dplyr::arrange(desc(x), desc(y), desc(orth.reg.n.observations)) %>%
   dplyr::mutate(or.slope = round(orth.reg.slope, digits = 3),
+                or.slope.95ci = glue::glue("({round(deming.reg.slope.lower.ci, digits = 3)}) - ({round(deming.reg.slope.upper.ci, digits = 3)})"),
                 or.int = round(orth.reg.intercept, digits = 3),
+                or.int.95ci = glue::glue("({round(deming.reg.intercept.lower.ci, digits = 3)}) - ({round(deming.reg.intercept.upper.ci, digits = 3)})"),
                 or.r2 = round(orth.reg.r.squared,digits = 3)) %>%
   dplyr::select(x, y,
                 or.slope,
+                or.slope.95ci,
                 or.int,
+                or.int.95ci,
                 or.r2,
                 lr.slope = reg.slope,
                 lr.int = reg.intercept,
